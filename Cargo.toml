@@ -1,0 +1,11 @@
+[package]
+name = "sml"
+version = "0.1.0"
+edition = "2021"
+authors = [ "catapillie <espritox@gmail.com>", "paokito <paokito.takasu@gmail.com" ]
+description = "The Super Mega Language !!!"
+repository = "https://github.com/catapillie/sml"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
