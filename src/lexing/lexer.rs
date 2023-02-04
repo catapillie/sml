@@ -32,11 +32,32 @@ impl<'a> Lexer<'a> {
             return tok;
         }
 
-        let span = TokenSpan::new(self.cursor, self.cursor + 1);
+        let start_index = self.cursor;
         self.cursor += 1;
 
         // TODO: 2-lengthed symbols
+        // TODO: escaped characters in string literal
         let kind = match c {
+            '"' => {
+                let mut closed = false;
+
+                for next_char in chars {
+                    self.cursor += 1;
+                    if next_char == '"' {
+                        closed = true;
+                        break;
+                    }
+                }
+
+                let text = &self.source[(start_index + 1)..(self.cursor - 1)];
+
+                if closed {
+                    TokenKind::String(text)
+                } else {
+                    TokenKind::MalformedString(text)
+                }
+            }
+
             '(' => TokenKind::LeftParen,
             ')' => TokenKind::RightParen,
             '[' => TokenKind::LeftBracket,
@@ -64,6 +85,8 @@ impl<'a> Lexer<'a> {
                 return self.lex();
             }
         };
+
+        let span = TokenSpan::new(start_index, self.cursor);
 
         Token::new(kind, span)
     }
@@ -210,6 +233,10 @@ mod tests {
     test_tokens!(test_integer_0 { "0" => TokenKind::Int(0) });
     test_tokens!(test_integer_65536 { "65536" => TokenKind::Int(65536) });
     test_tokens!(test_integer_1 { "1" => TokenKind::Int(1) });
+    test_tokens!(test_integer_2048_malformed { "2048malformed" => TokenKind::MalformedInt("2048malformed") });
+    test_tokens!(test_string_empty { "\"\"" => TokenKind::String("") });
+    test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String("this is a string literal") });
+    test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString("malformed") });
     test_tokens!(test_left_paren { "(" => TokenKind::LeftParen });
     test_tokens!(test_right_paren { ")" => TokenKind::RightParen });
     test_tokens!(test_left_bracket { "[" => TokenKind::LeftBracket });
