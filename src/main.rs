@@ -1,18 +1,15 @@
 use std::{env, fs};
 
-use sml::{Lexer, lexing::token_kind::TokenKind};
+use sml::Lexer;
 
 fn main() {
     let path = env::args().nth(1).expect("not enough arguments");
     let source = fs::read_to_string(path).expect("couldn't read file");
 
     let mut lexer = Lexer::new(&source);
-    loop {
-        let tok = lexer.lex();
-        println!("{tok:?}");
+    let tokens = lexer.lex_all();
 
-        if *tok.kind() == TokenKind::Eof {
-            break;
-        }
+    for tok in tokens {
+        println!("{tok:?}")
     }
 }
