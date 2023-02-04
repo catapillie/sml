@@ -173,3 +173,70 @@ impl<'a> Lexer<'a> {
         Some(Token::new(kind, span))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! test_tokens {
+        ($name:ident { $($raw:literal => $kind:expr)* }) => {
+            #[test]
+            fn $name() {
+                let mut lexer = Lexer::new(concat!($($raw, " "),*));
+
+                let tokens = lexer.lex_all();
+                let kinds = tokens.iter().map(|tok| tok.kind());
+
+                let expected_kinds = [$($kind),*];
+
+                for (kind, expected) in std::iter::zip(kinds, expected_kinds) {
+                    assert_eq!(kind, &expected);
+                }
+            }
+        };
+    }
+
+    test_tokens!(test_keyword_fn { "fn" => TokenKind::KeywordFn });
+    test_tokens!(test_keyword_if { "if" => TokenKind::KeywordIf });
+    test_tokens!(test_keyword_unless { "unless" => TokenKind::KeywordUnless });
+    test_tokens!(test_keyword_while { "while" => TokenKind::KeywordWhile });
+    test_tokens!(test_keyword_until { "until" => TokenKind::KeywordUntil });
+    test_tokens!(test_keyword_else { "else" => TokenKind::KeywordElse });
+    test_tokens!(test_keyword_forever { "forever" => TokenKind::KeywordForever });
+    test_tokens!(test_keyword_repeat { "repeat" => TokenKind::KeywordRepeat });
+    test_tokens!(test_identifier_abc { "abc" => TokenKind::Identifier("abc") });
+    test_tokens!(test_identifier_abclonger { "abclonger" => TokenKind::Identifier("abclonger") });
+    test_tokens!(test_identifier_main { "main" => TokenKind::Identifier("main") });
+    test_tokens!(test_integer_0 { "0" => TokenKind::Int(0) });
+    test_tokens!(test_integer_65536 { "65536" => TokenKind::Int(65536) });
+    test_tokens!(test_integer_1 { "1" => TokenKind::Int(1) });
+    test_tokens!(test_left_paren { "(" => TokenKind::LeftParen });
+    test_tokens!(test_right_paren { ")" => TokenKind::RightParen });
+    test_tokens!(test_left_bracket { "[" => TokenKind::LeftBracket });
+    test_tokens!(test_right_bracket { "]" => TokenKind::RightBracket });
+    test_tokens!(test_left_brace { "{" => TokenKind::LeftBrace });
+    test_tokens!(test_right_brace { "}" => TokenKind::RightBrace });
+    test_tokens!(test_left_chevron { "<" => TokenKind::LeftChevron });
+    test_tokens!(test_right_chevron { ">" => TokenKind::RightChevron });
+    test_tokens!(test_dot { "." => TokenKind::Dot });
+    test_tokens!(test_comma { "," => TokenKind::Comma });
+    test_tokens!(test_colon { ":" => TokenKind::Colon });
+    test_tokens!(test_semicolon { ";" => TokenKind::Semicolon });
+    test_tokens!(test_equal { "=" => TokenKind::Equal });
+    test_tokens!(test_plus { "+" => TokenKind::Plus });
+    test_tokens!(test_minus { "-" => TokenKind::Minus });
+    test_tokens!(test_asterisk { "*" => TokenKind::Asterisk });
+    test_tokens!(test_slash { "/" => TokenKind::Slash });
+    test_tokens!(test_ampersand { "&" => TokenKind::Ampersand });
+    test_tokens!(test_pipe { "|" => TokenKind::Pipe });
+    test_tokens!(test_eof { "" => TokenKind::Eof });
+
+    test_tokens!(test_fn_main {
+        "fn" => TokenKind::KeywordFn
+        "main" => TokenKind::Identifier("main")
+        "(" => TokenKind::LeftParen
+        ")" => TokenKind::RightParen
+        "{" => TokenKind::LeftBrace
+        "}" => TokenKind::RightBrace
+    });
+}
