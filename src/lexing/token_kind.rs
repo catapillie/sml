@@ -11,6 +11,9 @@ pub enum TokenKind<'a> {
 
     Identifier(&'a str),
 
+    Int(u64),
+    MalformedInt(&'a str),
+
     LeftParen,
     RightParen,
     LeftBracket,

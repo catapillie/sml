@@ -11,6 +11,10 @@ identifier
 other_identifier
 final_identifier
 
+0000000
+65536
+1
+
 ()
 []
 {}
