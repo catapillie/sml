@@ -1,5 +1,16 @@
 #[derive(Debug, PartialEq)]
-pub enum TokenKind {
+pub enum TokenKind<'a> {
+    KeywordFn,
+    KeywordIf,
+    KeywordUnless,
+    KeywordWhile,
+    KeywordUntil,
+    KeywordElse,
+    KeywordForever,
+    KeywordRepeat,
+
+    Identifier(&'a str),
+
     LeftParen,
     RightParen,
     LeftBracket,

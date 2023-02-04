@@ -1,18 +1,18 @@
 use super::{token_kind::TokenKind, token_span::TokenSpan};
 
 #[derive(Debug)]
-pub struct Token {
-    kind: TokenKind,
+pub struct Token<'a> {
+    kind: TokenKind<'a>,
     span: TokenSpan,
 }
 
-impl Token {
+impl<'a> Token<'a> {
     pub const EOF: Self = Self {
         kind: TokenKind::Eof,
         span: TokenSpan::MAX,
     };
 
-    pub fn new(kind: TokenKind, span: TokenSpan) -> Self {
+    pub fn new(kind: TokenKind<'a>, span: TokenSpan) -> Self {
         Self { kind, span }
     }
 
