@@ -32,32 +32,16 @@ impl<'a> Lexer<'a> {
             return tok;
         }
 
+        if let Some(tok) = self.try_lex_string(c, &mut chars) {
+            return tok;
+        }
+
         let start_index = self.cursor;
         self.cursor += 1;
 
         // TODO: 2-lengthed symbols
         // TODO: escaped characters in string literal
         let kind = match c {
-            '"' => {
-                let mut closed = false;
-
-                for next_char in chars {
-                    self.cursor += 1;
-                    if next_char == '"' {
-                        closed = true;
-                        break;
-                    }
-                }
-
-                let text = &self.source[(start_index + 1)..(self.cursor - 1)];
-
-                if closed {
-                    TokenKind::String(text)
-                } else {
-                    TokenKind::MalformedString(text)
-                }
-            }
-
             '(' => TokenKind::LeftParen,
             ')' => TokenKind::RightParen,
             '[' => TokenKind::LeftBracket,
@@ -195,6 +179,140 @@ impl<'a> Lexer<'a> {
 
         Some(Token::new(kind, span))
     }
+
+    fn try_lex_string(&mut self, c: char, chars: &mut Chars) -> Option<Token<'a>> {
+        if c != '"' {
+            return None;
+        }
+
+        let start_index = self.cursor;
+
+        self.cursor += 1;
+
+        let mut string = String::new();
+        let mut closed = false;
+
+        'outer_loop: while let Some(next_char) = chars.next() {
+            self.cursor += 1;
+
+            if next_char == '"' {
+                closed = true;
+                break;
+            }
+            if next_char != '\\' {
+                string.push(next_char);
+                continue;
+            }
+            self.cursor += 1;
+
+            let Some(c) = chars.next() else {
+                break;
+            };
+
+            string.push(match c {
+                'n' => '\n',
+                't' => '\t',
+                'r' => '\r',
+                '\\' => '\\',
+                '0' => '\0',
+                '"' => '"',
+                'x' => {
+                    self.cursor += 1;
+                    let Some(first) = chars.next() else {
+                        break;
+                    };
+                    self.cursor += 1;
+                    let Some(second) = chars.next() else {
+                        break;
+                    };
+
+                    let first = match first.to_digit(16) {
+                        None => {
+                            // TODO: push invalid character in ASCII escape sequence error
+                            0 // replacement value
+                        }
+                        Some(n) => {
+                            if n > 0x7 {
+                                // TODO: push too big error
+                                0 // replacement value
+                            } else {
+                                n as u8
+                            }
+                        }
+                    };
+
+                    // TODO: push invalid character in ASCII escape sequence error when `to_digit` returns `None`
+                    let second = second.to_digit(16).unwrap_or(0) as u8;
+
+                    ((first << 4) | second) as char
+                }
+                'u' => {
+                    self.cursor += 1;
+                    let Some(brace) = chars.next() else {
+                        break;
+                    };
+
+                    if brace != '{' {
+                        // TODO: push invalid character in unicode escape sequence error
+                        continue;
+                    }
+
+                    let mut unicode = 0;
+                    let mut i = 0;
+
+                    // get all the digits inside the braces
+                    loop {
+                        self.cursor += 1;
+                        match chars.next() {
+                            Some(digit) => {
+                                // end of the escape sequence
+                                if digit == '}' {
+                                    // TODO: push invalid unicode on `None`
+                                    match char::from_u32(unicode) {
+                                        Some(c) => break c,
+                                        None => continue 'outer_loop,
+                                    };
+                                }
+
+                                // too long
+                                if i > 5 {
+                                    // TODO: push unicode too long
+                                    continue 'outer_loop;
+                                }
+
+                                // TODO: push invalid character in unicode escape on `None`
+                                let digit = digit.to_digit(16).unwrap_or(0) as u8;
+
+                                unicode = (unicode << 4) | digit as u32;
+
+                                i += 1;
+                            }
+                            None => continue 'outer_loop,
+                        }
+                    }
+                }
+                c => {
+                    // TODO: push unknown escape sequence error
+                    c
+                }
+            });
+        }
+
+        let kind = if closed {
+            TokenKind::String(string)
+        } else {
+            dbg!(
+                "start: {}\ncursor: {}\nsource: {}",
+                start_index,
+                self.cursor,
+                self.source
+            );
+            TokenKind::MalformedString(&self.source[(start_index)..(self.cursor)])
+        };
+        let span = TokenSpan::new(start_index, self.cursor);
+
+        Some(Token::new(kind, span))
+    }
 }
 
 #[cfg(test)]
@@ -205,15 +323,19 @@ mod tests {
         ($name:ident { $($raw:literal => $kind:expr)* }) => {
             #[test]
             fn $name() {
-                let mut lexer = Lexer::new(concat!($($raw, " "),*));
+                let mut lexer = Lexer::new(concat!($(" ", $raw),*));
 
                 let tokens = lexer.lex_all();
-                let kinds = tokens.iter().map(|tok| tok.kind());
 
                 let expected_kinds = [$($kind),*];
 
-                for (kind, expected) in std::iter::zip(kinds, expected_kinds) {
-                    assert_eq!(kind, &expected);
+                for (token, expected) in tokens.iter().zip(expected_kinds.iter()) {
+                    assert_eq!(token.kind(), expected);
+                }
+
+                // check if the length is different, ignoring any trailing EOFs in the output tokens.
+                if tokens.iter().skip(expected_kinds.len()).any(|token| token.kind() != &TokenKind::Eof) {
+                    panic!("expected {} tokens (+ EOF), but got {}: {tokens:?}", expected_kinds.len(), tokens.len());
                 }
             }
         };
@@ -234,9 +356,11 @@ mod tests {
     test_tokens!(test_integer_65536 { "65536" => TokenKind::Int(65536) });
     test_tokens!(test_integer_1 { "1" => TokenKind::Int(1) });
     test_tokens!(test_integer_2048_malformed { "2048malformed" => TokenKind::MalformedInt("2048malformed") });
-    test_tokens!(test_string_empty { "\"\"" => TokenKind::String("") });
-    test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String("this is a string literal") });
-    test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString("malformed") });
+    test_tokens!(test_string_empty { "\"\"" => TokenKind::String(String::from("")) });
+    test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String(String::from("this is a string literal")) });
+    test_tokens!(test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => TokenKind::String(String::from("hello\nhi\twhat\ridk\\yes\0or\"no")) });
+    test_tokens!(test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => TokenKind::String(String::from("\x5E\x6F\x61\u{102}\u{12345}\u{103456}")) });
+    test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString("\"malformed") });
     test_tokens!(test_left_paren { "(" => TokenKind::LeftParen });
     test_tokens!(test_right_paren { ")" => TokenKind::RightParen });
     test_tokens!(test_left_bracket { "[" => TokenKind::LeftBracket });

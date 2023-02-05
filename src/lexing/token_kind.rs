@@ -14,7 +14,7 @@ pub enum TokenKind<'a> {
     Int(u64),
     MalformedInt(&'a str),
 
-    String(&'a str),
+    String(String),
     MalformedString(&'a str),
 
     LeftParen,
@@ -38,6 +38,6 @@ pub enum TokenKind<'a> {
     Slash,
     Ampersand,
     Pipe,
-    
+
     Eof,
 }
