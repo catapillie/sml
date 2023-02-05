@@ -217,7 +217,6 @@ impl<'a> Lexer<'a> {
                 '0' => '\0',
                 '"' => '"',
                 'x' => {
-                    self.cursor += 1;
                     let Some(first) = chars.next() else {
                         break;
                     };
@@ -225,6 +224,7 @@ impl<'a> Lexer<'a> {
                     let Some(second) = chars.next() else {
                         break;
                     };
+                    self.cursor += 1;
 
                     let first = match first.to_digit(16) {
                         None => {
@@ -247,10 +247,10 @@ impl<'a> Lexer<'a> {
                     ((first << 4) | second) as char
                 }
                 'u' => {
-                    self.cursor += 1;
                     let Some(brace) = chars.next() else {
                         break;
                     };
+                    self.cursor += 1;
 
                     if brace != '{' {
                         // TODO: push invalid character in unicode escape sequence error
@@ -262,9 +262,9 @@ impl<'a> Lexer<'a> {
 
                     // get all the digits inside the braces
                     loop {
-                        self.cursor += 1;
                         match chars.next() {
                             Some(digit) => {
+                                self.cursor += 1;
                                 // end of the escape sequence
                                 if digit == '}' {
                                     // TODO: push invalid unicode on `None`
