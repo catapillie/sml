@@ -159,7 +159,7 @@ impl<'a> Lexer<'a> {
             // TODO: push invalid integer literal error
             TokenKind::MalformedInt
         } else {
-            let text = span.slice(&self.source);
+            let text = span.slice(self.source);
 
             match text.parse() {
                 Ok(num) => TokenKind::Int(num),
@@ -331,7 +331,7 @@ impl<'a> Lexer<'a> {
                     // TODO: push invalid character in unicode escape on `None`
                     return None;
                 }
-                Some(n) => n as u32,
+                Some(n) => n,
             };
 
             unicode = (unicode << 4) | digit;
