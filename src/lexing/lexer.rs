@@ -1,43 +1,43 @@
-use std::str::Chars;
-
-use super::{token::Token, token_kind::TokenKind, token_span::TokenSpan};
+use super::{cursor::Cursor, token::Token, token_kind::TokenKind, token_span::TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
-    cursor: usize,
+    cursor: Cursor<'a>,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
-        Self { source, cursor: 0 }
+        Self {
+            source,
+            cursor: Cursor::new(source),
+        }
     }
 
     pub fn lex(&mut self) -> Token<'a> {
-        let mut chars = self.source.chars();
-        let c = match chars.nth(self.cursor) {
-            Some(c) => c,
-            None => return Token::EOF,
+        let Some(c) = self.cursor.peek() else {
+            return Token::EOF;
         };
 
         if c.is_whitespace() {
-            self.cursor += 1;
+            self.cursor.consume();
             return self.lex();
         }
 
-        if let Some(tok) = self.try_lex_identifier_or_keyword(c, &mut chars) {
+        if let Some(tok) = self.try_lex_identifier_or_keyword() {
             return tok;
         }
 
-        if let Some(tok) = self.try_lex_number(c, &mut chars) {
+        if let Some(tok) = self.try_lex_number() {
             return tok;
         }
 
-        if let Some(tok) = self.try_lex_string(c, &mut chars) {
+        if let Some(tok) = self.try_lex_string() {
             return tok;
         }
 
-        let start_index = self.cursor;
-        self.cursor += 1;
+        let start_index = self.cursor.offset();
+
+        self.cursor.consume();
 
         // TODO: 2-lengthed symbols
         // TODO: escaped characters in string literal
@@ -70,7 +70,7 @@ impl<'a> Lexer<'a> {
             }
         };
 
-        let span = TokenSpan::new(start_index, self.cursor);
+        let span = TokenSpan::new(start_index, self.cursor.offset());
 
         Token::new(kind, span)
     }
@@ -92,31 +92,25 @@ impl<'a> Lexer<'a> {
         tokens
     }
 
-    fn try_read_word(&mut self, c: char, chars: &mut Chars) -> Option<(&'a str, TokenSpan)> {
-        if !Self::is_identifier_start(c) {
+    fn try_read_word(&mut self) -> Option<TokenSpan> {
+        let start_index = self.cursor.offset();
+
+        let mut peek_iter = self.cursor.peek_iter();
+        if !matches!(peek_iter.next(), Some(c) if Self::is_identifier_start(c)) {
             return None;
         }
 
-        let start_index = self.cursor;
-        self.cursor += 1;
+        while matches!(peek_iter.next(), Some(c) if Self::is_identifier_continue(c)) {}
 
-        for next_char in chars {
-            if !Self::is_identifier_continue(next_char) {
-                break;
-            }
-            self.cursor += 1;
-        }
-
-        let text = &self.source[start_index..self.cursor];
-        let span = TokenSpan::new(start_index, self.cursor);
-
-        Some((text, span))
+        Some(TokenSpan::new(start_index, self.cursor.offset()))
     }
 
-    fn try_lex_identifier_or_keyword(&mut self, c: char, chars: &mut Chars) -> Option<Token<'a>> {
-        let Some((text, span)) = self.try_read_word(c, chars) else {
+    fn try_lex_identifier_or_keyword(&mut self) -> Option<Token<'a>> {
+        let Some(span) = self.try_read_word() else {
             return None;
         };
+
+        let text = span.slice(self.source);
 
         let kind = match text {
             "fn" => TokenKind::KeywordFn,
@@ -142,37 +136,36 @@ impl<'a> Lexer<'a> {
     }
 
     // TODO: read alphabetic characters that follow integer literal, and return MalformedInt
-    fn try_lex_number(&mut self, mut c: char, chars: &mut Chars) -> Option<Token<'a>> {
-        if !c.is_ascii_digit() {
+    fn try_lex_number(&mut self) -> Option<Token<'a>> {
+        let start_index = self.cursor.offset();
+
+        let mut peek_iter = self.cursor.peek_iter();
+
+        if !matches!(peek_iter.next(), Some(c) if c.is_ascii_digit()) {
             return None;
         }
 
-        let start_index = self.cursor;
-        self.cursor += 1;
-
-        for next_char in &mut *chars {
+        for next_char in peek_iter {
             if !next_char.is_ascii_digit() {
-                c = next_char;
                 break;
             }
-            self.cursor += 1;
         }
 
         // NOTE: could use read word for special syntax
-        let has_word = self.try_read_word(c, chars).is_some();
+        let has_word = self.try_read_word().is_some();
 
-        let text = &self.source[start_index..self.cursor];
-
-        let span = TokenSpan::new(start_index, self.cursor);
+        let span = TokenSpan::new(start_index, self.cursor.offset());
         let kind = if has_word {
             // TODO: push invalid integer literal error
-            TokenKind::MalformedInt(text)
+            TokenKind::MalformedInt
         } else {
+            let text = span.slice(&self.source);
+
             match text.parse() {
                 Ok(num) => TokenKind::Int(num),
                 Err(_) => {
                     // TODO: push invalid integer literal error
-                    TokenKind::MalformedInt(text)
+                    TokenKind::MalformedInt
                 }
             }
         };
@@ -180,138 +173,172 @@ impl<'a> Lexer<'a> {
         Some(Token::new(kind, span))
     }
 
-    fn try_lex_string(&mut self, c: char, chars: &mut Chars) -> Option<Token<'a>> {
-        if c != '"' {
+    fn try_lex_string(&mut self) -> Option<Token<'a>> {
+        let start_index = self.cursor.offset();
+
+        if !matches!(self.cursor.peek(), Some('"')) {
+            return None;
+        }
+        self.cursor.consume();
+
+        // This will be `None` at the end of the loop if the string is malformed.
+        let mut string = Some(String::new());
+
+        // Start of the string data.
+        let mut push_start = start_index + 1;
+
+        'outer_loop: loop {
+            // We first loop through all of the characters that are neither '"' nor '\\'.
+            loop {
+                match self.cursor.next() {
+                    Some(next_char) => {
+                        // End of string
+                        if next_char == '"' {
+                            // Write all the characters that we looped through if the string is not malformed and it is not empty.
+                            // Because if it is empty, which means there are no escape sequences,
+                            // we will just store a reference to `self.source` instead of allocating a `String`.
+                            if let Some(ref mut string) = string {
+                                if !string.is_empty() {
+                                    // `self.cursor.offset() - 1` because we don't want to include the '"'
+                                    string.push_str(
+                                        &self.source[push_start..self.cursor.offset() - 1],
+                                    );
+                                }
+                            }
+                            break 'outer_loop;
+                        }
+                        // Escape sequance !!
+                        if next_char == '\\' {
+                            break;
+                        }
+                    }
+                    None => {
+                        string = None;
+                        break 'outer_loop;
+                    }
+                }
+            }
+
+            // Write all the characters that we looped through if the string is not malformed.
+            if let Some(ref mut string) = string {
+                // `self.cursor.offset() - 1` because we don't want to include the '\\'
+                string.push_str(&self.source[push_start..self.cursor.offset() - 1]);
+            }
+
+            // Try to parse the escape sequence.
+            let Some(c) = self.try_parse_string_escape_sequence() else {
+                // The string is malformed.
+                string = None;
+                continue 'outer_loop
+            };
+
+            // If the string is not malformed, push the escape sequence result.
+            if let Some(ref mut string) = string {
+                string.push(c);
+                // The next portion of string we will loop through starts at `self.cursor.offset()`
+                push_start = self.cursor.offset();
+            }
+        }
+
+        let kind = if let Some(string) = string {
+            if string.is_empty() {
+                // No escape sequences, so no need to allocate memory
+                TokenKind::String(self.source[start_index + 1..self.cursor.offset() - 1].into())
+            } else {
+                TokenKind::String(string.into())
+            }
+        } else {
+            TokenKind::MalformedString
+        };
+        let span = TokenSpan::new(start_index, self.cursor.offset());
+
+        Some(Token::new(kind, span))
+    }
+
+    fn try_parse_string_escape_sequence(&mut self) -> Option<char> {
+        Some(match self.cursor.next()? {
+            'n' => '\n',
+            't' => '\t',
+            'r' => '\r',
+            '\\' => '\\',
+            '0' => '\0',
+            '"' => '"',
+            'x' => self.try_parse_ascii_escape_sequence()?,
+            'u' => self.try_parse_unicode_escape_sequence()?,
+            _ => {
+                // TODO: push error
+                return None;
+            }
+        })
+    }
+
+    fn try_parse_ascii_escape_sequence(&mut self) -> Option<char> {
+        let (first, second) = (self.cursor.next()?, self.cursor.next()?);
+
+        let first = match first.to_digit(16) {
+            None => {
+                // TODO: push invalid character in ASCII escape sequence error
+                return None;
+            }
+            // an ascii character is 7 bits long in UTF-8, so the first byte must not exceed a value of 0x7.
+            Some(n) if n > 0x7 => {
+                // TODO: push too big error
+                return None;
+            }
+            Some(n) => n as u8,
+        };
+
+        let second = match second.to_digit(16) {
+            None => {
+                // TODO: push invalid character in ASCII escape sequence error
+                return None;
+            }
+            Some(n) => n as u8,
+        };
+
+        Some(((first << 4) | second) as char)
+    }
+
+    fn try_parse_unicode_escape_sequence(&mut self) -> Option<char> {
+        let brace = self.cursor.next()?;
+
+        if brace != '{' {
+            // TODO: push invalid character in unicode escape sequence error
             return None;
         }
 
-        let start_index = self.cursor;
+        let mut unicode = 0;
 
-        self.cursor += 1;
-
-        let mut string = String::new();
-        let mut closed = false;
-
-        'outer_loop: while let Some(next_char) = chars.next() {
-            self.cursor += 1;
-
-            if next_char == '"' {
-                closed = true;
-                break;
+        // get all the digits inside the braces
+        for (i, next_char) in self.cursor.by_ref().enumerate() {
+            if next_char == '}' {
+                match char::from_u32(unicode) {
+                    Some(c) => return Some(c),
+                    None => {
+                        // TODO: push invalid unicode on `None`
+                        return None;
+                    }
+                };
             }
-            if next_char != '\\' {
-                string.push(next_char);
-                continue;
-            }
-            self.cursor += 1;
 
-            let Some(c) = chars.next() else {
-                break;
+            if i > 5 {
+                // TODO: push unicode too long
+                return None;
+            }
+
+            let digit = match next_char.to_digit(16) {
+                None => {
+                    // TODO: push invalid character in unicode escape on `None`
+                    return None;
+                }
+                Some(n) => n as u32,
             };
 
-            string.push(match c {
-                'n' => '\n',
-                't' => '\t',
-                'r' => '\r',
-                '\\' => '\\',
-                '0' => '\0',
-                '"' => '"',
-                'x' => {
-                    let Some(first) = chars.next() else {
-                        break;
-                    };
-                    self.cursor += 1;
-                    let Some(second) = chars.next() else {
-                        break;
-                    };
-                    self.cursor += 1;
-
-                    let first = match first.to_digit(16) {
-                        None => {
-                            // TODO: push invalid character in ASCII escape sequence error
-                            0 // replacement value
-                        }
-                        Some(n) => {
-                            if n > 0x7 {
-                                // TODO: push too big error
-                                0 // replacement value
-                            } else {
-                                n as u8
-                            }
-                        }
-                    };
-
-                    // TODO: push invalid character in ASCII escape sequence error when `to_digit` returns `None`
-                    let second = second.to_digit(16).unwrap_or(0) as u8;
-
-                    ((first << 4) | second) as char
-                }
-                'u' => {
-                    let Some(brace) = chars.next() else {
-                        break;
-                    };
-                    self.cursor += 1;
-
-                    if brace != '{' {
-                        // TODO: push invalid character in unicode escape sequence error
-                        continue;
-                    }
-
-                    let mut unicode = 0;
-                    let mut i = 0;
-
-                    // get all the digits inside the braces
-                    loop {
-                        match chars.next() {
-                            Some(digit) => {
-                                self.cursor += 1;
-                                // end of the escape sequence
-                                if digit == '}' {
-                                    // TODO: push invalid unicode on `None`
-                                    match char::from_u32(unicode) {
-                                        Some(c) => break c,
-                                        None => continue 'outer_loop,
-                                    };
-                                }
-
-                                // too long
-                                if i > 5 {
-                                    // TODO: push unicode too long
-                                    continue 'outer_loop;
-                                }
-
-                                // TODO: push invalid character in unicode escape on `None`
-                                let digit = digit.to_digit(16).unwrap_or(0) as u8;
-
-                                unicode = (unicode << 4) | digit as u32;
-
-                                i += 1;
-                            }
-                            None => continue 'outer_loop,
-                        }
-                    }
-                }
-                c => {
-                    // TODO: push unknown escape sequence error
-                    c
-                }
-            });
+            unicode = (unicode << 4) | digit;
         }
 
-        let kind = if closed {
-            TokenKind::String(string)
-        } else {
-            dbg!(
-                "start: {}\ncursor: {}\nsource: {}",
-                start_index,
-                self.cursor,
-                self.source
-            );
-            TokenKind::MalformedString(&self.source[(start_index)..(self.cursor)])
-        };
-        let span = TokenSpan::new(start_index, self.cursor);
-
-        Some(Token::new(kind, span))
+        // OEF
+        None
     }
 }
 
@@ -355,12 +382,12 @@ mod tests {
     test_tokens!(test_integer_0 { "0" => TokenKind::Int(0) });
     test_tokens!(test_integer_65536 { "65536" => TokenKind::Int(65536) });
     test_tokens!(test_integer_1 { "1" => TokenKind::Int(1) });
-    test_tokens!(test_integer_2048_malformed { "2048malformed" => TokenKind::MalformedInt("2048malformed") });
-    test_tokens!(test_string_empty { "\"\"" => TokenKind::String(String::from("")) });
-    test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String(String::from("this is a string literal")) });
-    test_tokens!(test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => TokenKind::String(String::from("hello\nhi\twhat\ridk\\yes\0or\"no")) });
-    test_tokens!(test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => TokenKind::String(String::from("\x5E\x6F\x61\u{102}\u{12345}\u{103456}")) });
-    test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString("\"malformed") });
+    test_tokens!(test_integer_2048_malformed { "2048malformed" => TokenKind::MalformedInt });
+    test_tokens!(test_string_empty { "\"\"" => TokenKind::String("".into()) });
+    test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String("this is a string literal".into()) });
+    test_tokens!(test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => TokenKind::String("hello\nhi\twhat\ridk\\yes\0or\"no".into()) });
+    test_tokens!(test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => TokenKind::String("\x5E\x6F\x61\u{102}\u{12345}\u{103456}".into()) });
+    test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString });
     test_tokens!(test_left_paren { "(" => TokenKind::LeftParen });
     test_tokens!(test_right_paren { ")" => TokenKind::RightParen });
     test_tokens!(test_left_bracket { "[" => TokenKind::LeftBracket });

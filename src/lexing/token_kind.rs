@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 #[derive(Debug, PartialEq)]
 pub enum TokenKind<'a> {
     KeywordFn,
@@ -12,10 +14,10 @@ pub enum TokenKind<'a> {
     Identifier(&'a str),
 
     Int(u64),
-    MalformedInt(&'a str),
+    MalformedInt,
 
-    String(String),
-    MalformedString(&'a str),
+    String(Cow<'a, str>),
+    MalformedString,
 
     LeftParen,
     RightParen,
