@@ -15,7 +15,7 @@ fn main() {
     
     let diagnostics = lexer.diagnostics();
     if !diagnostics.is_empty() {
-        println!("\ncompilation finished abnormally:");
+        println!("\n[!] compilation finished abnormally:");
         for e in diagnostics {
             println!("    {e}");
         }
