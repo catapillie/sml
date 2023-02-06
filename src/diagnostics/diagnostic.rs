@@ -81,4 +81,36 @@ impl Diagnostic {
             span,
         }
     }
+    
+    pub fn unicode_sequence_missing_left_brace(span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: String::from("Unicode escape sequence must start with an opening brace"),
+            span,
+        }
+    }
+
+    pub fn invalid_unicode_character_code(text: &str, span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: format!("The Unicode sequence '{text}' is invalid"),
+            span,
+        }
+    }
+
+    pub fn invalid_unicode_too_long(span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: String::from("The Unicode escape sequence is too long, and is thus invalid"),
+            span,
+        }
+    }
+
+    pub fn invalid_unicode_digit(c: char, span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: format!("The Unicode sequence must be a hexadecimal number, but '{c}' isn't a hexadecimal digit"),
+            span,
+        }
+    }
 }

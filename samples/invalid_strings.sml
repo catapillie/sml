@@ -5,3 +5,8 @@
 "string with an ASCII character code \xg0, whose first digit is invalid"
 "string with an ASCII character code \x2h, whose second digit is invalid"
 "string with an ASCII character code \xff, whose code is greater than 0x7"
+
+"string with a Unicode character code \u10f}, with a missing opening brace"
+"string with a Unicode character code \u{12345678}, whose code is too long"
+"string with a Unicode character code \u{ffffff}, whose code is invalid"
+"string with a Unicode character code \u{0f5x9}, whose code contains a non-hexadecimal digit"

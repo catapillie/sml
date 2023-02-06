@@ -312,13 +312,15 @@ impl<'a> Lexer<'a> {
 
     fn try_parse_unicode_escape_sequence(&mut self) -> Option<char> {
         let brace = self.cursor.next()?;
+        let code_index = self.cursor.offset();
 
         if brace != '{' {
-            // TODO: push invalid character in unicode escape sequence error
+            self.diagnostics.push(Diagnostic::unicode_sequence_missing_left_brace(TokenSpan::new(code_index - 2, code_index - 1)));
             return None;
         }
 
         let mut unicode = 0;
+        let mut raw_unicode = String::new(); // needed for diagnostic message
 
         // get all the digits inside the braces
         for (i, next_char) in self.cursor.by_ref().enumerate() {
@@ -326,29 +328,32 @@ impl<'a> Lexer<'a> {
                 match char::from_u32(unicode) {
                     Some(c) => return Some(c),
                     None => {
-                        // TODO: push invalid unicode error
+                        let span = TokenSpan::new(code_index, code_index + i);
+                        self.diagnostics.push(Diagnostic::invalid_unicode_character_code(raw_unicode.as_str(), span));
                         return None;
                     }
                 };
             }
 
             if i > 5 {
-                // TODO: push unicode code too long error
+                self.diagnostics.push(Diagnostic::invalid_unicode_too_long(TokenSpan::new(code_index, code_index + i + 1)));
                 return None;
             }
 
             let digit = match next_char.to_digit(16) {
                 None => {
-                    // TODO: push invalid character in unicode escape sequence error
+                    let span = TokenSpan::new(code_index + i, code_index + i + 1);
+                    self.diagnostics.push(Diagnostic::invalid_unicode_digit(next_char, span));
                     return None;
                 }
                 Some(n) => n,
             };
 
             unicode = (unicode << 4) | digit;
+            raw_unicode.push(next_char);
         }
 
-        // EOF
+        // eof
         None
     }
 }
