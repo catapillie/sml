@@ -135,7 +135,6 @@ impl<'a> Lexer<'a> {
         Self::is_identifier_start(c) || c.is_ascii_digit()
     }
 
-    // TODO: read alphabetic characters that follow integer literal, and return MalformedInt
     fn try_lex_number(&mut self) -> Option<Token<'a>> {
         let start_index = self.cursor.offset();
 
@@ -160,7 +159,6 @@ impl<'a> Lexer<'a> {
             TokenKind::MalformedInt
         } else {
             let text = span.slice(self.source);
-
             match text.parse() {
                 Ok(num) => TokenKind::Int(num),
                 Err(_) => {
@@ -176,9 +174,9 @@ impl<'a> Lexer<'a> {
     fn try_lex_string(&mut self) -> Option<Token<'a>> {
         let start_index = self.cursor.offset();
 
-        if !matches!(self.cursor.peek(), Some('"')) {
+        let Some('"') = self.cursor.peek() else {
             return None;
-        }
+        };
         self.cursor.consume();
 
         // This will be `None` at the end of the loop if the string is malformed.
@@ -207,7 +205,7 @@ impl<'a> Lexer<'a> {
                             }
                             break 'outer_loop;
                         }
-                        // Escape sequance !!
+                        // Escape sequence!!
                         if next_char == '\\' {
                             break;
                         }
@@ -266,7 +264,7 @@ impl<'a> Lexer<'a> {
             'x' => self.try_parse_ascii_escape_sequence()?,
             'u' => self.try_parse_unicode_escape_sequence()?,
             _ => {
-                // TODO: push error
+                // TODO: push invalid escaped character error 
                 return None;
             }
         })
@@ -277,12 +275,12 @@ impl<'a> Lexer<'a> {
 
         let first = match first.to_digit(16) {
             None => {
-                // TODO: push invalid character in ASCII escape sequence error
+                // TODO: push invalid ascii character error
                 return None;
             }
             // an ascii character is 7 bits long in UTF-8, so the first byte must not exceed a value of 0x7.
             Some(n) if n > 0x7 => {
-                // TODO: push too big error
+                // TODO: push invalid ascii character code error
                 return None;
             }
             Some(n) => n as u8,
@@ -290,7 +288,7 @@ impl<'a> Lexer<'a> {
 
         let second = match second.to_digit(16) {
             None => {
-                // TODO: push invalid character in ASCII escape sequence error
+                // TODO: push invalid ascii character error
                 return None;
             }
             Some(n) => n as u8,
@@ -315,20 +313,20 @@ impl<'a> Lexer<'a> {
                 match char::from_u32(unicode) {
                     Some(c) => return Some(c),
                     None => {
-                        // TODO: push invalid unicode on `None`
+                        // TODO: push invalid unicode error
                         return None;
                     }
                 };
             }
 
             if i > 5 {
-                // TODO: push unicode too long
+                // TODO: push unicode code too long error
                 return None;
             }
 
             let digit = match next_char.to_digit(16) {
                 None => {
-                    // TODO: push invalid character in unicode escape on `None`
+                    // TODO: push invalid character in unicode escape sequence error
                     return None;
                 }
                 Some(n) => n,
@@ -337,7 +335,7 @@ impl<'a> Lexer<'a> {
             unicode = (unicode << 4) | digit;
         }
 
-        // OEF
+        // EOF
         None
     }
 }

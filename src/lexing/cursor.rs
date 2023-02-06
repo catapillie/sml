@@ -84,7 +84,7 @@ pub struct CursorPeekIter<'a, 'b> {
 }
 
 impl<'a, 'b> CursorPeekIter<'a, 'b> {
-    /// Creates a new [`CursorPeekIter`] bound to `cusor`.
+    /// Creates a new [`CursorPeekIter`] bound to `cursor`.
     fn new(cursor: &'b mut Cursor<'a>) -> Self {
         Self {
             cursor,
@@ -97,7 +97,7 @@ impl<'a, 'b> Iterator for CursorPeekIter<'a, 'b> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // If this is the first peeked character, don't cosume it.
+        // If this is the first peeked character, don't consume it.
         if self.is_first {
             self.is_first = false;
             self.cursor.peek()
