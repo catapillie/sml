@@ -12,4 +12,13 @@ fn main() {
     for tok in tokens {
         println!("{tok:?}")
     }
+    
+    let diagnostics = lexer.diagnostics();
+    if !diagnostics.is_empty() {
+        println!("\ncompilation finished abnormally:");
+        for e in diagnostics {
+            println!("    {e}");
+        }
+    }
+    
 }

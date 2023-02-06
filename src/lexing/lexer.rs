@@ -1,8 +1,11 @@
+use crate::diagnostics::diagnostic::Diagnostic;
+
 use super::{cursor::Cursor, token::Token, token_kind::TokenKind, token_span::TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
     cursor: Cursor<'a>,
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a> Lexer<'a> {
@@ -10,7 +13,12 @@ impl<'a> Lexer<'a> {
         Self {
             source,
             cursor: Cursor::new(source),
+            diagnostics: Vec::new(),
         }
+    }
+
+    pub fn diagnostics(&self) -> &Vec<Diagnostic> {
+        &self.diagnostics
     }
 
     pub fn lex(&mut self) -> Token<'a> {
@@ -40,7 +48,6 @@ impl<'a> Lexer<'a> {
         self.cursor.consume();
 
         // TODO: 2-lengthed symbols
-        // TODO: escaped characters in string literal
         let kind = match c {
             '(' => TokenKind::LeftParen,
             ')' => TokenKind::RightParen,
@@ -65,7 +72,8 @@ impl<'a> Lexer<'a> {
             '|' => TokenKind::Pipe,
 
             _ => {
-                // TODO: push illegal character error
+                let span = TokenSpan::new(start_index, self.cursor.offset());
+                self.diagnostics.push(Diagnostic::illegal_character(c, span));
                 return self.lex();
             }
         };
