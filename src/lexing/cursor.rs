@@ -2,7 +2,7 @@ use std::str::Chars;
 
 /// A struct that keeps track of the position of the cursor in the sourcce buffer.
 ///
-/// Use (`next`)[Cursor::next] to get the next character in the source, and (`peek`)[Cursor::peek] to peek.
+/// Use [`next`](Cursor::next) to get the next character in the source, and [`peek`](Cursor::peek) to peek.
 #[derive(Debug, Clone)]
 pub struct Cursor<'a> {
     /// The next character that will be read. It is [`None`] if EOF has been reached.
@@ -27,9 +27,9 @@ impl<'a> Cursor<'a> {
 
     /// Consumes the next character without returning it.
     ///
-    /// This is just a wrapper around (`next`)[Cursor::next].
+    /// This is just a wrapper around [`next`](Cursor::next).
     /// Its only purpose is to make it obvious that you just want to consume a character without reading it,
-    /// in most cases because (`peek`)[Cursor::peek] was used right before.
+    /// in most cases because [`peek`](Cursor::peek) was used right before.
     pub fn consume(&mut self) {
         self.next();
     }
@@ -72,14 +72,14 @@ impl<'a> Iterator for Cursor<'a> {
 
 /// A struct that peeks each character.
 ///
-/// The peeked character is consumed only when (`next`)[CursorPeekIter::next] is called again.
+/// The peeked character is consumed only when [`next`](CursorPeekIter::next) is called again.
 pub struct CursorPeekIter<'a, 'b> {
-    /// The [`Cusor`] it is bound to.
+    /// The [`Cursor`] it is bound to.
     cursor: &'b mut Cursor<'a>,
     /// Whether the next character is the first after this struct's creation.
     ///
     /// This is useful because we don't want to consume the first character,
-    /// which is what happens on other characters when (`next`)[CursorPeekIter::next] is called.
+    /// which is what happens on other characters when [`next`](CursorPeekIter::next) is called.
     is_first: bool,
 }
 
@@ -102,7 +102,7 @@ impl<'a, 'b> Iterator for CursorPeekIter<'a, 'b> {
             self.is_first = false;
             self.cursor.peek()
         } else {
-            // Consume the character that was peeked on the previous (`next`)[`CursorPeekIter::new`] call.
+            // Consume the character that was peeked on the previous [`next`](`CursorPeekIter::new`) call.
             self.cursor.consume();
             self.cursor.peek()
         }
