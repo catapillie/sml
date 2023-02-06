@@ -49,4 +49,36 @@ impl Diagnostic {
             span,
         }
     }
+
+    pub fn invalid_escape_character(c: char, span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: format!("The escape character '{c}' is invalid"),
+            span,
+        }
+    }
+
+    pub fn expect_ascii_character_first(c: char, span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: format!("Expected a valid ASCII character code, but the first character '{c}' isn't a hexadecimal digit"),
+            span,
+        }
+    }
+
+    pub fn expect_ascii_character_second(c: char, span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: format!("Expected a valid ASCII character code, but the second character '{c}' isn't a hexadecimal digit"),
+            span,
+        }
+    }
+
+    pub fn invalid_ascii_character_code(first: char, second: char, span: TokenSpan) -> Self {
+        Self {
+            severity: Severity::Error,
+            message: format!("The ASCII character code '{first}{second}' is invalid"),
+            span,
+        }
+    }
 }

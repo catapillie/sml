@@ -255,6 +255,7 @@ impl<'a> Lexer<'a> {
                 TokenKind::String(string.into())
             }
         } else {
+            // HELP: is this an error? if so, push an error.
             TokenKind::MalformedString
         };
         let span = TokenSpan::new(start_index, self.cursor.offset());
@@ -272,24 +273,27 @@ impl<'a> Lexer<'a> {
             '"' => '"',
             'x' => self.try_parse_ascii_escape_sequence()?,
             'u' => self.try_parse_unicode_escape_sequence()?,
-            _ => {
-                // TODO: push invalid escaped character error 
+            c => {
+                let offset = self.cursor.offset();
+                let span = TokenSpan::new(offset, offset + 1);
+                self.diagnostics.push(Diagnostic::invalid_escape_character(c, span));
                 return None;
             }
         })
     }
 
     fn try_parse_ascii_escape_sequence(&mut self) -> Option<char> {
+        let offset = self.cursor.offset();
         let (first, second) = (self.cursor.next()?, self.cursor.next()?);
 
         let first = match first.to_digit(16) {
             None => {
-                // TODO: push invalid ascii character error
+                self.diagnostics.push(Diagnostic::expect_ascii_character_first(first, TokenSpan::new(offset, offset + 1)));
                 return None;
             }
             // an ascii character is 7 bits long in UTF-8, so the first byte must not exceed a value of 0x7.
             Some(n) if n > 0x7 => {
-                // TODO: push invalid ascii character code error
+                self.diagnostics.push(Diagnostic::invalid_ascii_character_code(first, second, TokenSpan::new(offset, offset + 2)));
                 return None;
             }
             Some(n) => n as u8,
@@ -297,7 +301,7 @@ impl<'a> Lexer<'a> {
 
         let second = match second.to_digit(16) {
             None => {
-                // TODO: push invalid ascii character error
+                self.diagnostics.push(Diagnostic::expect_ascii_character_second(second, TokenSpan::new(offset + 1, offset + 2)));
                 return None;
             }
             Some(n) => n as u8,
