@@ -15,10 +15,10 @@ impl Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[{}..{}] {:?} {}",
+            "{:?}[{}..{}] - {}",
+            self.severity,
             self.span.start(),
             self.span.end(),
-            self.severity,
             self.message
         )
     }
