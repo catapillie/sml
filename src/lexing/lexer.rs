@@ -1,4 +1,4 @@
-use crate::diagnostics::diagnostic::Diagnostic;
+use crate::diagnostics::{diagnostic::Diagnostic};
 
 use super::{cursor::Cursor, token::Token, token_kind::TokenKind, token_span::TokenSpan};
 
@@ -162,15 +162,16 @@ impl<'a> Lexer<'a> {
         let has_word = self.try_read_word().is_some();
 
         let span = TokenSpan::new(start_index, self.cursor.offset());
+        let text = span.slice(self.source);
+
         let kind = if has_word {
-            // TODO: push invalid integer literal error
+            self.diagnostics.push(Diagnostic::invalid_integer_trailing_word(text, span));
             TokenKind::MalformedInt
         } else {
-            let text = span.slice(self.source);
             match text.parse() {
                 Ok(num) => TokenKind::Int(num),
                 Err(_) => {
-                    // TODO: push invalid integer literal error
+                    self.diagnostics.push(Diagnostic::invalid_integer_too_large(text, span));
                     TokenKind::MalformedInt
                 }
             }

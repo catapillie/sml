@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct TokenSpan {
     start: usize,
     end: usize,
