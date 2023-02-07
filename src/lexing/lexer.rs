@@ -1,11 +1,11 @@
-use crate::diagnostics::diagnostic::Diagnostic;
+use crate::diagnostics::{DiagnosticKind, DiagnosticList};
 
 use super::{cursor::Cursor, token::Token, token_kind::TokenKind, token_span::TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
     cursor: Cursor<'a>,
-    diagnostics: Vec<Diagnostic>,
+    diagnostics: DiagnosticList,
 }
 
 impl<'a> Lexer<'a> {
@@ -13,11 +13,11 @@ impl<'a> Lexer<'a> {
         Self {
             source,
             cursor: Cursor::new(source),
-            diagnostics: Vec::new(),
+            diagnostics: DiagnosticList::new(),
         }
     }
 
-    pub fn diagnostics(&self) -> &Vec<Diagnostic> {
+    pub fn diagnostics(&self) -> &DiagnosticList {
         &self.diagnostics
     }
 
@@ -74,7 +74,7 @@ impl<'a> Lexer<'a> {
             _ => {
                 let span = TokenSpan::new(start_index, self.cursor.offset());
                 self.diagnostics
-                    .push(Diagnostic::illegal_character(c, span));
+                    .push_kind(DiagnosticKind::IllegalCharacter(c), span);
                 return self.lex();
             }
         };
@@ -167,14 +167,14 @@ impl<'a> Lexer<'a> {
 
         let kind = if has_word {
             self.diagnostics
-                .push(Diagnostic::invalid_integer_trailing_word(text, span));
+                .push_kind(DiagnosticKind::InvalidIntegerTrailingWord, span);
             TokenKind::MalformedInt
         } else {
             match text.parse() {
                 Ok(num) => TokenKind::Int(num),
                 Err(_) => {
                     self.diagnostics
-                        .push(Diagnostic::invalid_integer_too_large(text, span));
+                        .push_kind(DiagnosticKind::InvalidIntegerTooLarge, span);
                     TokenKind::MalformedInt
                 }
             }
@@ -280,7 +280,7 @@ impl<'a> Lexer<'a> {
                 let offset = self.cursor.offset();
                 let span = TokenSpan::new(offset, offset + 1);
                 self.diagnostics
-                    .push(Diagnostic::invalid_escape_character(c, span));
+                    .push_kind(DiagnosticKind::InvalidEscapeCharacter(c), span);
                 return None;
             }
         })
@@ -292,21 +292,18 @@ impl<'a> Lexer<'a> {
 
         let first = match first.to_digit(16) {
             None => {
-                self.diagnostics
-                    .push(Diagnostic::expect_ascii_character_first(
-                        first,
-                        TokenSpan::new(offset, offset + 1),
-                    ));
+                self.diagnostics.push_kind(
+                    DiagnosticKind::ExpectAsciiCharacterFirst(first),
+                    TokenSpan::new(offset, offset + 1),
+                );
                 return None;
             }
             // an ascii character is 7 bits long in UTF-8, so the first byte must not exceed a value of 0x7.
             Some(n) if n > 0x7 => {
-                self.diagnostics
-                    .push(Diagnostic::invalid_ascii_character_code(
-                        first,
-                        second,
-                        TokenSpan::new(offset, offset + 2),
-                    ));
+                self.diagnostics.push_kind(
+                    DiagnosticKind::InvalidAsciiCharacterCode(first, second),
+                    TokenSpan::new(offset, offset + 2),
+                );
                 return None;
             }
             Some(n) => n as u8,
@@ -314,11 +311,10 @@ impl<'a> Lexer<'a> {
 
         let second = match second.to_digit(16) {
             None => {
-                self.diagnostics
-                    .push(Diagnostic::expect_ascii_character_second(
-                        second,
-                        TokenSpan::new(offset + 1, offset + 2),
-                    ));
+                self.diagnostics.push_kind(
+                    DiagnosticKind::ExpectAsciiCharacterSecond(second),
+                    TokenSpan::new(offset + 1, offset + 2),
+                );
                 return None;
             }
             Some(n) => n as u8,
@@ -332,10 +328,10 @@ impl<'a> Lexer<'a> {
         let code_index = self.cursor.offset();
 
         if brace != '{' {
-            self.diagnostics
-                .push(Diagnostic::unicode_sequence_missing_left_brace(
-                    TokenSpan::new(code_index - 2, code_index - 1),
-                ));
+            self.diagnostics.push_kind(
+                DiagnosticKind::InvalidUnicodeSequenceMissingLeftBrace,
+                TokenSpan::new(code_index - 2, code_index - 1),
+            );
             return None;
         }
 
@@ -350,21 +346,17 @@ impl<'a> Lexer<'a> {
                     None => {
                         let span = TokenSpan::new(code_index, code_index + i);
                         self.diagnostics
-                            .push(Diagnostic::invalid_unicode_character_code(
-                                raw_unicode.as_str(),
-                                span,
-                            ));
+                            .push_kind(DiagnosticKind::InvalidUnicodeCharacterCode, span);
                         return None;
                     }
                 };
             }
 
             if i > 5 {
-                self.diagnostics
-                    .push(Diagnostic::invalid_unicode_too_long(TokenSpan::new(
-                        code_index,
-                        code_index + i + 1,
-                    )));
+                self.diagnostics.push_kind(
+                    DiagnosticKind::InvalidUnicodeTooLong,
+                    TokenSpan::new(code_index, code_index + i + 1),
+                );
                 return None;
             }
 
@@ -372,7 +364,7 @@ impl<'a> Lexer<'a> {
                 None => {
                     let span = TokenSpan::new(code_index + i, code_index + i + 1);
                     self.diagnostics
-                        .push(Diagnostic::invalid_unicode_digit(next_char, span));
+                        .push_kind(DiagnosticKind::InvalidUnicodeDigit(next_char), span);
                     return None;
                 }
                 Some(n) => n,
