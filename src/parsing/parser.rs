@@ -1,14 +1,13 @@
 use std::mem;
 
 use crate::{
-    diagnostics::DiagnosticKind,
     lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind, token_span::TokenSpan},
-    DiagnosticList, Lexer,
+    DiagnosticList, Lexer, diagnostics::ParserDiagnosticKind,
 };
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
-    diagnostics: DiagnosticList,
+    diagnostics: DiagnosticList<ParserDiagnosticKind>,
     lookahead: Token<'a>,
 }
 
@@ -31,7 +30,7 @@ impl<'a> Parser<'a> {
         &self.lexer
     }
 
-    pub fn diagnostics(&self) -> &DiagnosticList {
+    pub fn diagnostics(&self) -> &DiagnosticList<ParserDiagnosticKind> {
         &self.diagnostics
     }
 
@@ -45,7 +44,7 @@ impl<'a> Parser<'a> {
             tok
         } else {
             self.diagnostics.push_kind(
-                DiagnosticKind::UnexpectedToken {
+                ParserDiagnosticKind::UnexpectedToken {
                     expected,
                     found: self.lookahead.kind().discr(),
                 },
@@ -91,7 +90,7 @@ impl<'a> Parser<'a> {
             // TODO: return identifier node
         } else {
             // no primary expression is found, so let's push an error.
-            self.diagnostics.push_kind(DiagnosticKind::ExpectedExpression, self.lookahead.span());
+            self.diagnostics.push_kind(ParserDiagnosticKind::ExpectedExpression, self.lookahead.span());
         }
     }
 }

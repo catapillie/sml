@@ -1,11 +1,11 @@
-use crate::diagnostics::{DiagnosticKind, DiagnosticList};
+use crate::diagnostics::{DiagnosticList, LexerDiagnosticKind};
 
 use super::{cursor::Cursor, token::Token, token_kind::TokenKind, token_span::TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
     cursor: Cursor<'a>,
-    diagnostics: DiagnosticList,
+    diagnostics: DiagnosticList<LexerDiagnosticKind>,
 }
 
 impl<'a> Lexer<'a> {
@@ -17,7 +17,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn diagnostics(&self) -> &DiagnosticList {
+    pub fn diagnostics(&self) -> &DiagnosticList<LexerDiagnosticKind> {
         &self.diagnostics
     }
 
@@ -74,7 +74,7 @@ impl<'a> Lexer<'a> {
             _ => {
                 let span = TokenSpan::new(start_index, self.cursor.offset());
                 self.diagnostics
-                    .push_kind(DiagnosticKind::IllegalCharacter(c), span);
+                    .push_kind(LexerDiagnosticKind::IllegalCharacter(c), span);
                 return self.lex();
             }
         };
@@ -167,14 +167,14 @@ impl<'a> Lexer<'a> {
 
         let kind = if has_word {
             self.diagnostics
-                .push_kind(DiagnosticKind::InvalidIntegerTrailingWord, span);
+                .push_kind(LexerDiagnosticKind::InvalidIntegerTrailingWord, span);
             TokenKind::MalformedInt
         } else {
             match text.parse() {
                 Ok(num) => TokenKind::Int(num),
                 Err(_) => {
                     self.diagnostics
-                        .push_kind(DiagnosticKind::InvalidIntegerTooLarge, span);
+                        .push_kind(LexerDiagnosticKind::InvalidIntegerTooLarge, span);
                     TokenKind::MalformedInt
                 }
             }
@@ -280,7 +280,7 @@ impl<'a> Lexer<'a> {
                 let offset = self.cursor.offset();
                 let span = TokenSpan::new(offset, offset + 1);
                 self.diagnostics
-                    .push_kind(DiagnosticKind::InvalidEscapeCharacter(c), span);
+                    .push_kind(LexerDiagnosticKind::InvalidEscapeCharacter(c), span);
                 return None;
             }
         })
@@ -293,7 +293,7 @@ impl<'a> Lexer<'a> {
         let first = match first.to_digit(16) {
             None => {
                 self.diagnostics.push_kind(
-                    DiagnosticKind::ExpectAsciiCharacterFirst(first),
+                    LexerDiagnosticKind::ExpectAsciiCharacterFirst(first),
                     TokenSpan::new(offset, offset + 1),
                 );
                 return None;
@@ -301,7 +301,7 @@ impl<'a> Lexer<'a> {
             // an ascii character is 7 bits long in UTF-8, so the first byte must not exceed a value of 0x7.
             Some(n) if n > 0x7 => {
                 self.diagnostics.push_kind(
-                    DiagnosticKind::InvalidAsciiCharacterCode(first, second),
+                    LexerDiagnosticKind::InvalidAsciiCharacterCode(first, second),
                     TokenSpan::new(offset, offset + 2),
                 );
                 return None;
@@ -312,7 +312,7 @@ impl<'a> Lexer<'a> {
         let second = match second.to_digit(16) {
             None => {
                 self.diagnostics.push_kind(
-                    DiagnosticKind::ExpectAsciiCharacterSecond(second),
+                    LexerDiagnosticKind::ExpectAsciiCharacterSecond(second),
                     TokenSpan::new(offset + 1, offset + 2),
                 );
                 return None;
@@ -329,7 +329,7 @@ impl<'a> Lexer<'a> {
 
         if brace != '{' {
             self.diagnostics.push_kind(
-                DiagnosticKind::InvalidUnicodeSequenceMissingLeftBrace,
+                LexerDiagnosticKind::InvalidUnicodeSequenceMissingLeftBrace,
                 TokenSpan::new(code_index - 2, code_index - 1),
             );
             return None;
@@ -346,7 +346,7 @@ impl<'a> Lexer<'a> {
                     None => {
                         let span = TokenSpan::new(code_index, code_index + i);
                         self.diagnostics
-                            .push_kind(DiagnosticKind::InvalidUnicodeCharacterCode, span);
+                            .push_kind(LexerDiagnosticKind::InvalidUnicodeCharacterCode, span);
                         return None;
                     }
                 };
@@ -354,7 +354,7 @@ impl<'a> Lexer<'a> {
 
             if i > 5 {
                 self.diagnostics.push_kind(
-                    DiagnosticKind::InvalidUnicodeTooLong,
+                    LexerDiagnosticKind::InvalidUnicodeTooLong,
                     TokenSpan::new(code_index, code_index + i + 1),
                 );
                 return None;
@@ -364,7 +364,7 @@ impl<'a> Lexer<'a> {
                 None => {
                     let span = TokenSpan::new(code_index + i, code_index + i + 1);
                     self.diagnostics
-                        .push_kind(DiagnosticKind::InvalidUnicodeDigit(next_char), span);
+                        .push_kind(LexerDiagnosticKind::InvalidUnicodeDigit(next_char), span);
                     return None;
                 }
                 Some(n) => n,
