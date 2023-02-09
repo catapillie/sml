@@ -27,6 +27,7 @@ pub enum DiagnosticKind {
     #[assoc(id=0011)] #[assoc(severity=Error)] InvalidUnicodeDigit(char),
 
     #[assoc(id=0101)] #[assoc(severity=Error)] UnexpectedToken{expected: TokenDiscr, found: TokenDiscr},
+    #[assoc(id=0102)] #[assoc(severity=Error)] ExpectedExpression,
 }
 
 // TODO: derive proc macro
@@ -73,7 +74,8 @@ impl Diagnostic {
                 DiagnosticKind::InvalidUnicodeDigit(c) => format!("The Unicode sequence must be a hexadecimal number, but '{c}' isn't a hexadecimal digit"),
                 
                 DiagnosticKind::UnexpectedToken{expected, found} => format!("Expected {expected:?} token, but found {found:?} token"),
-                
+                DiagnosticKind::ExpectedExpression => "Expected an expression".to_string(),
+
                 #[allow(unreachable_patterns)]
                 _ => "(no message specified...)".to_string(),
             }

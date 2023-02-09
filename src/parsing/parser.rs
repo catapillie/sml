@@ -2,7 +2,7 @@ use std::mem;
 
 use crate::{
     diagnostics::DiagnosticKind,
-    lexing::{token::Token, token_discr::TokenDiscr},
+    lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind},
     DiagnosticList, Lexer,
 };
 
@@ -54,13 +54,41 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_empty_function(&mut self) {
-        self.expect(TokenDiscr::KeywordFn);
-        self.expect(TokenDiscr::Identifier);
-        self.expect(TokenDiscr::LeftParen);
-        self.expect(TokenDiscr::RightParen);
-        self.expect(TokenDiscr::LeftBrace);
-        self.expect(TokenDiscr::RightBrace);
-        self.expect(TokenDiscr::Eof);
+    fn try_expect(&mut self, expected: TokenDiscr) -> Option<Token<'a>> {
+        if self.lookahead.kind().discr() == expected {
+            Some(self.consume())
+        } else {
+            None
+        }
+    }
+
+    //pub fn parse_empty_function(&mut self) {
+    //    self.expect(TokenDiscr::KeywordFn);
+    //    self.expect(TokenDiscr::Identifier);
+    //    self.expect(TokenDiscr::LeftParen);
+    //    self.expect(TokenDiscr::RightParen);
+    //    self.expect(TokenDiscr::LeftBrace);
+    //    self.expect(TokenDiscr::RightBrace);
+    //    self.expect(TokenDiscr::Eof);
+    //}
+
+    pub fn parse_three_primary_expressions(&mut self) {
+        self.parse_primary_expression();
+        self.parse_primary_expression();
+        self.parse_primary_expression();
+    }
+
+    // TODO: return AST node
+    fn parse_primary_expression(&mut self) {
+        if let Some(tok) = self.try_expect(TokenDiscr::Int) {
+            // TODO: return integer literal node
+        } else if let Some(tok) = self.try_expect(TokenDiscr::String) {
+            // TODO: return string literal node
+        } else if let Some(tok) = self.try_expect(TokenDiscr::Identifier) {
+            // TODO: return identifier node
+        } else {
+            // no primary expression is found, so let's push an error.
+            self.diagnostics.push_kind(DiagnosticKind::ExpectedExpression, self.lookahead.span());
+        }
     }
 }

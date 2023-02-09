@@ -9,7 +9,7 @@ fn main() {
     let mut lexer = Lexer::new(&source);
     let mut parser = Parser::new(&mut lexer);
 
-    parser.parse_empty_function();
+    parser.parse_three_primary_expressions();
 
     let lexer_diagnostics = parser.lexer().diagnostics();
     let parser_diagnostics = parser.diagnostics();
