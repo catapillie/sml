@@ -11,6 +11,14 @@ fn main() {
 
     parser.parse_empty_function();
 
+    let parser_diagnostics = parser.diagnostics();
+    if !parser_diagnostics.list().is_empty() {
+        println!("\n[!] compilation finished abnormally:");
+        for e in parser_diagnostics.list() {
+            println!("    {}", e.build_message(&source));
+        }
+    }
+
     // let diagnostics = lexer.diagnostics();
     // if !diagnostics.list().is_empty() {
     //     println!("\n[!] compilation finished abnormally:");

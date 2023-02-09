@@ -1,4 +1,4 @@
-use crate::lexing::token_span::TokenSpan;
+use crate::lexing::{token_span::TokenSpan, token_discr::TokenDiscr};
 
 use super::Severity::{self, Error};
 
@@ -25,6 +25,8 @@ pub enum DiagnosticKind {
     #[assoc(id=0009)] #[assoc(severity=Error)] InvalidUnicodeCharacterCode,
     #[assoc(id=0010)] #[assoc(severity=Error)] InvalidUnicodeTooLong,
     #[assoc(id=0011)] #[assoc(severity=Error)] InvalidUnicodeDigit(char),
+
+    #[assoc(id=0101)] #[assoc(severity=Error)] UnexpectedToken{expected: TokenDiscr, found: TokenDiscr},
 }
 
 // TODO: derive proc macro
@@ -69,6 +71,9 @@ impl Diagnostic {
                 DiagnosticKind::InvalidUnicodeCharacterCode => format!("The Unicode sequence '{source}' is invalid"),
                 DiagnosticKind::InvalidUnicodeTooLong => "The Unicode escape sequence is too long, and is thus invalid".to_string(),
                 DiagnosticKind::InvalidUnicodeDigit(c) => format!("The Unicode sequence must be a hexadecimal number, but '{c}' isn't a hexadecimal digit"),
+                
+                DiagnosticKind::UnexpectedToken{expected, found} => format!("Expected {expected:?} token, but found {found:?} token"),
+                
                 kind => "(no message specified...)".to_string(),
             }
         )
