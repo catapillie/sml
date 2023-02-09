@@ -2,7 +2,7 @@ use std::mem;
 
 use crate::{
     diagnostics::DiagnosticKind,
-    lexing::{token::Token, token_discr::TokenDiscr},
+    lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind, token_span::TokenSpan},
     DiagnosticList, Lexer,
 };
 
@@ -45,12 +45,15 @@ impl<'a> Parser<'a> {
             tok
         } else {
             self.diagnostics.push_kind(
-                DiagnosticKind::UnexpectedToken { expected, found: self.lookahead.kind().discr() },
+                DiagnosticKind::UnexpectedToken {
+                    expected,
+                    found: self.lookahead.kind().discr(),
+                },
                 self.lookahead.span(),
             );
             // we return a 'fake' token, because we aren't consuming the lookahead yet.
-            // TODO: return a good 'fake' token, not eof
-            Token::EOF // placeholder
+            let span = TokenSpan::empty(self.lookahead.span().start());
+            Token::new(TokenKind::Fake(expected), span)
         }
     }
 

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::token_discr::TokenDiscr;
+use super::{token_discr::TokenDiscr};
 
 #[derive(Debug, PartialEq)]
 #[derive(enum_assoc::Assoc)]
@@ -47,4 +47,13 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::Pipe)] Pipe,
 
     #[assoc(discr = TokenDiscr::Eof)] Eof,
+
+    #[assoc(discr = fake_discr(self))] Fake(TokenDiscr),
+}
+
+const fn fake_discr(kind: &TokenKind) -> TokenDiscr {
+    let TokenKind::Fake(discr) = kind else {
+        panic!("called `fake_discr` on a non-fake token kind");
+    };
+    *discr
 }
