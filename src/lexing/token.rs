@@ -7,11 +7,6 @@ pub struct Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub const EOF: Self = Self {
-        kind: TokenKind::Eof,
-        span: TokenSpan::MAX,
-    };
-
     pub fn new(kind: TokenKind<'a>, span: TokenSpan) -> Self {
         Self { kind, span }
     }

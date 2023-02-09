@@ -1,11 +1,12 @@
 use std::mem;
 
 use crate::{
+    diagnostics::ParserDiagnosticKind,
     lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind, token_span::TokenSpan},
-    DiagnosticList, Lexer, diagnostics::ParserDiagnosticKind,
+    DiagnosticList, Lexer,
 };
 
-use super::{parser_ast::ParserAST, expression::Expression};
+use super::{expression::Expression, parser_ast::ParserAST};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -42,19 +43,28 @@ impl<'a> Parser<'a> {
     }
 
     fn expect(&mut self, expected: TokenDiscr) -> Token<'a> {
-        if let Some(tok) = self.try_expect(expected) {
-            tok
+        let found = self.lookahead.kind().discr();
+        if found == expected {
+            self.consume()
         } else {
-            self.diagnostics.push_kind(
-                ParserDiagnosticKind::UnexpectedToken {
-                    expected,
-                    found: self.lookahead.kind().discr(),
-                },
-                self.lookahead.span(),
-            );
+            let span = self.lookahead.span();
+            match found {
+                TokenDiscr::Eof => self
+                    .diagnostics
+                    .push_kind(ParserDiagnosticKind::UnexpectedEof { expected }, span),
+                _ => {
+                    self.diagnostics.push_kind(
+                        ParserDiagnosticKind::UnexpectedToken {
+                            expected,
+                            found: self.lookahead.kind().discr(),
+                        },
+                        span,
+                    );
+                }
+            }
             // we return a 'fake' token, because we aren't consuming the lookahead yet.
-            let span = TokenSpan::empty(self.lookahead.span().start());
-            Token::new(TokenKind::Fake(expected), span)
+            let fake_span = TokenSpan::empty(self.lookahead.span().start());
+            Token::new(TokenKind::Fake(expected), fake_span)
         }
     }
 
@@ -77,12 +87,19 @@ impl<'a> Parser<'a> {
             Expression::Literal { token }
         } else if let Some(token) = self.try_expect(TokenDiscr::Identifier) {
             Expression::Literal { token }
-        } else if let Some(left_paren) = self.try_expect(TokenDiscr::LeftParen) { 
+        } else if let Some(left_paren) = self.try_expect(TokenDiscr::LeftParen) {
             let expression = Box::new(self.parse_expression());
             let right_paren = self.expect(TokenDiscr::RightParen);
-            Expression::Parenthesized { left_paren, expression, right_paren }
+            Expression::Parenthesized {
+                left_paren,
+                expression,
+                right_paren,
+            }
         } else {
-            self.diagnostics.push_kind(ParserDiagnosticKind::ExpectedExpression, self.lookahead.span());
+            self.diagnostics.push_kind(
+                ParserDiagnosticKind::ExpectedExpression,
+                self.lookahead.span(),
+            );
             Expression::None
         }
     }

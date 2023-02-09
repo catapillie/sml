@@ -23,7 +23,7 @@ impl<'a> Lexer<'a> {
 
     pub fn lex(&mut self) -> Token<'a> {
         let Some(c) = self.cursor.peek() else {
-            return Token::EOF;
+            return Token::new(TokenKind::Eof, TokenSpan::empty(self.source.len()));
         };
 
         if c.is_whitespace() {

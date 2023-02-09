@@ -7,11 +7,6 @@ pub struct TokenSpan {
 }
 
 impl TokenSpan {
-    pub const MAX: Self = Self {
-        start: usize::MAX,
-        end: usize::MAX,
-    };
-
     pub fn new(start: usize, end: usize) -> Self {
         if start > end {
             panic!("invalid span creation");

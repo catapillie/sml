@@ -11,7 +11,8 @@ use super::{
 #[rustfmt::skip]
 pub enum ParserDiagnosticKind {
     #[assoc(id=0101)] #[assoc(severity=Error)] UnexpectedToken{expected: TokenDiscr, found: TokenDiscr},
-    #[assoc(id=0102)] #[assoc(severity=Error)] ExpectedExpression,
+    #[assoc(id=0102)] #[assoc(severity=Error)] UnexpectedEof{expected: TokenDiscr},
+    #[assoc(id=0103)] #[assoc(severity=Error)] ExpectedExpression,
 }
 
 impl DiagnosticKind for ParserDiagnosticKind {
@@ -27,6 +28,7 @@ impl DiagnosticKind for ParserDiagnosticKind {
     fn message(&self, source: &str) -> String {
         match self {
             ParserDiagnosticKind::UnexpectedToken { expected, found } => format!("Expected {expected:?} token, but found {found:?} token"),
+            ParserDiagnosticKind::UnexpectedEof { expected } => format!("Expected {expected:?} token, but unexpectedly reached end-of-file"),
             ParserDiagnosticKind::ExpectedExpression => "Expected an expression".to_string(),
         }
     }
