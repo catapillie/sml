@@ -11,19 +11,27 @@ fn main() {
 
     parser.parse_empty_function();
 
+    let lexer_diagnostics = parser.lexer().diagnostics();
     let parser_diagnostics = parser.diagnostics();
-    if !parser_diagnostics.list().is_empty() {
-        println!("\n[!] compilation finished abnormally:");
-        for e in parser_diagnostics.list() {
+
+    if lexer_diagnostics.list().is_empty() && parser_diagnostics.list().is_empty() {
+        println!("\n[OK] compilation finished successfully.");
+        return;
+    }
+
+    // TODO: sort messages by span.
+    // TODO: pretty error messages.
+    println!("\n[!] compilation finished abnormally:");
+    
+    if !lexer_diagnostics.list().is_empty() {
+        for e in lexer_diagnostics.list() {
             println!("    {}", e.build_message(&source));
         }
     }
 
-    // let diagnostics = lexer.diagnostics();
-    // if !diagnostics.list().is_empty() {
-    //     println!("\n[!] compilation finished abnormally:");
-    //     for e in diagnostics.list() {
-    //         println!("    {e:?}");
-    //     }
-    // }
+    if !parser_diagnostics.list().is_empty() {
+        for e in parser_diagnostics.list() {
+            println!("    {}", e.build_message(&source));
+        }
+    }
 }

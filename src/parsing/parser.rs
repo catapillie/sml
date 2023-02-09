@@ -24,6 +24,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // we (currently) need to access the lexer through the parser,
+    // because we pass lexer's mutable reference to the parser.
+    pub fn lexer(&self) -> &Lexer<'a> {
+        &self.lexer
+    }
+
     pub fn diagnostics(&self) -> &DiagnosticList {
         &self.diagnostics
     }
