@@ -2,12 +2,12 @@ use std::mem;
 
 use crate::{
     diagnostics::DiagnosticKind,
-    lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind},
+    lexing::{token::Token, token_discr::TokenDiscr},
     DiagnosticList, Lexer,
 };
 
 pub struct Parser<'a> {
-    lexer: &'a mut Lexer<'a>,
+    lexer: Lexer<'a>,
     diagnostics: DiagnosticList,
     lookahead: Token<'a>,
 }
@@ -15,7 +15,8 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     // parser creation implies lexing the first token.
     // should this behavior be made explicit, i.e., in another function?
-    pub fn new(lexer: &'a mut Lexer<'a>) -> Self {
+    pub fn new(source: &'a str) -> Self {
+        let mut lexer = Lexer::new(source);
         let first_token = lexer.lex();
         Self {
             lexer,
@@ -27,7 +28,7 @@ impl<'a> Parser<'a> {
     // we (currently) need to access the lexer through the parser,
     // because we pass lexer's mutable reference to the parser.
     pub fn lexer(&self) -> &Lexer<'a> {
-        self.lexer
+        &self.lexer
     }
 
     pub fn diagnostics(&self) -> &DiagnosticList {

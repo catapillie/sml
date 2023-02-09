@@ -1,13 +1,12 @@
 use std::{env, fs};
 
-use sml::{Lexer, Parser};
+use sml::Parser;
 
 fn main() {
     let path = env::args().nth(1).expect("not enough arguments");
     let source = fs::read_to_string(path).expect("couldn't read file");
 
-    let mut lexer = Lexer::new(&source);
-    let mut parser = Parser::new(&mut lexer);
+    let mut parser = Parser::new(&source);
 
     parser.parse_three_primary_expressions();
 
