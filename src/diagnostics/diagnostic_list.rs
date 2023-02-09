@@ -7,6 +7,7 @@ pub struct DiagnosticList {
 }
 
 impl DiagnosticList {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { list: Vec::new() }
     }

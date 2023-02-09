@@ -56,7 +56,7 @@ impl Diagnostic {
     pub fn build_message(&self, source: &str) -> String {
         let source = self.span.slice(source);
 
-        format!("{:?}:[{}] {}",
+        format!("{:?}:[{:04}] {}",
             self.kind.severity(),
             self.kind.id(),
 
