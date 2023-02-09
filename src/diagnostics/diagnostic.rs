@@ -74,7 +74,8 @@ impl Diagnostic {
                 
                 DiagnosticKind::UnexpectedToken{expected, found} => format!("Expected {expected:?} token, but found {found:?} token"),
                 
-                kind => "(no message specified...)".to_string(),
+                #[allow(unreachable_patterns)]
+                _ => "(no message specified...)".to_string(),
             }
         )
     }
