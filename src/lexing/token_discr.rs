@@ -1,4 +1,5 @@
 #[derive(Debug, PartialEq)]
+#[derive(Copy, Clone)]
 pub enum TokenDiscr {
     KeywordFn,
     KeywordIf,

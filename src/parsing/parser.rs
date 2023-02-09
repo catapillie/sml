@@ -40,12 +40,11 @@ impl<'a> Parser<'a> {
     }
 
     fn expect(&mut self, expected: TokenDiscr) -> Token<'a> {
-        let found = self.lookahead.kind().discr();
-        if found == expected {
-            self.consume()
+        if let Some(tok) = self.try_expect(expected) {
+            tok
         } else {
             self.diagnostics.push_kind(
-                DiagnosticKind::UnexpectedToken { expected, found },
+                DiagnosticKind::UnexpectedToken { expected, found: self.lookahead.kind().discr() },
                 self.lookahead.span(),
             );
             // we return a 'fake' token, because we aren't consuming the lookahead yet.
