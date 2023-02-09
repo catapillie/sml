@@ -5,6 +5,8 @@ use crate::{
     DiagnosticList, Lexer, diagnostics::ParserDiagnosticKind,
 };
 
+use super::{parser_ast::ParserAST, expression::Expression};
+
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     diagnostics: DiagnosticList<ParserDiagnosticKind>,
@@ -64,33 +66,24 @@ impl<'a> Parser<'a> {
         }
     }
 
-    //pub fn parse_empty_function(&mut self) {
-    //    self.expect(TokenDiscr::KeywordFn);
-    //    self.expect(TokenDiscr::Identifier);
-    //    self.expect(TokenDiscr::LeftParen);
-    //    self.expect(TokenDiscr::RightParen);
-    //    self.expect(TokenDiscr::LeftBrace);
-    //    self.expect(TokenDiscr::RightBrace);
-    //    self.expect(TokenDiscr::Eof);
-    //}
-
-    pub fn parse_three_primary_expressions(&mut self) {
-        self.parse_primary_expression();
-        self.parse_primary_expression();
-        self.parse_primary_expression();
+    pub fn parse_expression(&mut self) -> Expression<'a> {
+        self.parse_primary_expression()
     }
 
-    // TODO: return AST node
-    fn parse_primary_expression(&mut self) {
-        if let Some(tok) = self.try_expect(TokenDiscr::Int) {
-            // TODO: return integer literal node
-        } else if let Some(tok) = self.try_expect(TokenDiscr::String) {
-            // TODO: return string literal node
-        } else if let Some(tok) = self.try_expect(TokenDiscr::Identifier) {
-            // TODO: return identifier node
+    fn parse_primary_expression(&mut self) -> Expression<'a> {
+        if let Some(token) = self.try_expect(TokenDiscr::Int) {
+            Expression::Literal { token }
+        } else if let Some(token) = self.try_expect(TokenDiscr::String) {
+            Expression::Literal { token }
+        } else if let Some(token) = self.try_expect(TokenDiscr::Identifier) {
+            Expression::Literal { token }
+        } else if let Some(left_paren) = self.try_expect(TokenDiscr::LeftParen) { 
+            let expression = Box::new(self.parse_expression());
+            let right_paren = self.expect(TokenDiscr::RightParen);
+            Expression::Parenthesized { left_paren, expression, right_paren }
         } else {
-            // no primary expression is found, so let's push an error.
             self.diagnostics.push_kind(ParserDiagnosticKind::ExpectedExpression, self.lookahead.span());
+            Expression::None
         }
     }
 }

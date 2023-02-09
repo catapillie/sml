@@ -8,13 +8,13 @@ fn main() {
 
     let mut parser = Parser::new(&source);
 
-    parser.parse_three_primary_expressions();
+    let expression = parser.parse_expression();
 
     let lexer_diagnostics = parser.lexer().diagnostics();
     let parser_diagnostics = parser.diagnostics();
 
     if lexer_diagnostics.list().is_empty() && parser_diagnostics.list().is_empty() {
-        println!("\n[OK] compilation finished successfully.");
+        println!("\n[OK] compilation finished successfully.\n\n{expression:?}");
         return;
     }
 
