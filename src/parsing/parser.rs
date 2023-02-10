@@ -77,7 +77,54 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expression(&mut self) -> Expression<'a> {
-        self.parse_primary_expression()
+        self.parse_operation_expression(0)
+    }
+
+    fn parse_operation_expression(&mut self, precedence: u8) -> Expression<'a> {
+        let mut left = self.parse_primary_expression();
+
+        loop {
+            // no operator ahead, break and return immediately the primary expression.
+            let Some(precedence_ahead) = self.binary_operator_precedence() else {
+                break;
+            };
+
+            // the operator located ahead has lower precedence.
+            // we thus have to break early, return the current operator,
+            // and let the previous call build the binary expression,
+            // so that the tree accurately respects the order of operations that we defined.
+            if precedence_ahead < precedence {
+                break;
+            }
+
+            // we can parse the operation here.
+            // consume the operator, parse next operation *with higher precedence*.
+            // put the left expression as left operand.
+            let operator = self.consume();
+            let right = self.parse_operation_expression(precedence_ahead);
+            left = Expression::BinaryOperation {
+                left_operand: Box::new(left),
+                operator,
+                right_operand: Box::new(right),
+            };
+        }
+
+        // finally return the built expression.
+        left
+    }
+
+    // returns None if lookahead is not an operator.
+    fn binary_operator_precedence(&self) -> Option<u8> {
+        match self.lookahead.kind().discr() {
+            TokenDiscr::Ampersand => Some(30),
+            TokenDiscr::Pipe => Some(30),
+            TokenDiscr::Asterisk => Some(30),
+            TokenDiscr::Slash => Some(30),
+            TokenDiscr::Plus => Some(20),
+            TokenDiscr::Minus => Some(20),
+            TokenDiscr::Equal => Some(10),
+            _ => None,
+        }
     }
 
     fn parse_primary_expression(&mut self) -> Expression<'a> {
