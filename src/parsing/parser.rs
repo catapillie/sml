@@ -128,26 +128,27 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_primary_expression(&mut self) -> Expression<'a> {
-        if let Some(token) = self.try_expect(TokenDiscr::Int) {
-            Expression::Literal { token }
-        } else if let Some(token) = self.try_expect(TokenDiscr::String) {
-            Expression::Literal { token }
-        } else if let Some(token) = self.try_expect(TokenDiscr::Identifier) {
-            Expression::Literal { token }
-        } else if let Some(left_paren) = self.try_expect(TokenDiscr::LeftParen) {
-            let expression = Box::new(self.parse_expression());
-            let right_paren = self.expect(TokenDiscr::RightParen);
-            Expression::Parenthesized {
-                left_paren,
-                expression,
-                right_paren,
+        match self.lookahead.kind().discr() {
+            TokenDiscr::Int | TokenDiscr::String | TokenDiscr::Identifier => {
+                Expression::Literal { token: self.consume() }
+            },
+            TokenDiscr::LeftParen => {
+                let left_paren = self.consume();
+                let expression = Box::new(self.parse_expression());
+                let right_paren = self.expect(TokenDiscr::RightParen);
+                Expression::Parenthesized {
+                    left_paren,
+                    expression,
+                    right_paren,
+                }
+            },
+            _ => {
+                self.diagnostics.push_kind(
+                    ParserDiagnosticKind::ExpectedExpression,
+                    self.lookahead.span(),
+                );
+                Expression::None
             }
-        } else {
-            self.diagnostics.push_kind(
-                ParserDiagnosticKind::ExpectedExpression,
-                self.lookahead.span(),
-            );
-            Expression::None
         }
     }
 }
