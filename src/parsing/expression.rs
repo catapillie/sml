@@ -15,5 +15,9 @@ pub enum Expression<'a> {
         left_operand: Box<Expression<'a>>,
         operator: Token<'a>,
         right_operand: Box<Expression<'a>>,
-    }
+    },
+    UnaryOperation {
+        operator: Token<'a>,
+        operand: Box<Expression<'a>>,
+    },
 }

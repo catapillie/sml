@@ -81,7 +81,15 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_operation_expression(&mut self, precedence: u8) -> Expression<'a> {
-        let mut left = self.parse_primary_expression();
+        let mut left = if let Some(precedence_ahead) = self.unary_operator_precedence() {
+            let operator = self.consume();
+            Expression::UnaryOperation {
+                operator,
+                operand: Box::new(self.parse_operation_expression(precedence_ahead)),
+            }
+        } else {
+            self.parse_primary_expression()
+        };
 
         loop {
             // no operator ahead, break and return immediately the primary expression.
@@ -127,10 +135,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // returns None if lookahead is not a unary operator.
+    fn unary_operator_precedence(&self) -> Option<u8> {
+        match self.lookahead.kind().discr() {
+            TokenDiscr::Plus => Some(50),
+            TokenDiscr::Minus => Some(50),
+            _ => None,
+        }
+    }
+
     fn parse_primary_expression(&mut self) -> Expression<'a> {
         match self.lookahead.kind().discr() {
-            TokenDiscr::Int | TokenDiscr::String | TokenDiscr::Identifier => {
-                Expression::Literal { token: self.consume() }
+            TokenDiscr::Int | TokenDiscr::String | TokenDiscr::Identifier => Expression::Literal {
+                token: self.consume(),
             },
             TokenDiscr::LeftParen => {
                 let left_paren = self.consume();
@@ -141,7 +158,7 @@ impl<'a> Parser<'a> {
                     expression,
                     right_paren,
                 }
-            },
+            }
             _ => {
                 self.diagnostics.push_kind(
                     ParserDiagnosticKind::ExpectedExpression,
