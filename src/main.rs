@@ -12,7 +12,7 @@ fn main() {
 
     println!("\n{ast:?}");
 
-    let lexer_diagnostics = parser.lexer().diagnostics();
+    let lexer_diagnostics = parser.lexer_diagnostics();
     let parser_diagnostics = parser.diagnostics();
 
     if lexer_diagnostics.list().is_empty() && parser_diagnostics.list().is_empty() {
@@ -23,7 +23,7 @@ fn main() {
     // TODO: sort messages by span.
     // TODO: pretty error messages.
     println!("\n[!] compilation finished abnormally:");
-    
+
     if !lexer_diagnostics.list().is_empty() {
         for e in lexer_diagnostics.list() {
             println!("    {}", e.build_message(&source));

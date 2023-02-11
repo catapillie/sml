@@ -18,7 +18,7 @@ fn main() {
         let ast = parser.parse_expression();
         println!("\n{ast:#?}");
 
-        let lexer_diagnostics = parser.lexer().diagnostics();
+        let lexer_diagnostics = parser.lexer_diagnostics();
         let parser_diagnostics = parser.diagnostics();
 
         if lexer_diagnostics.list().is_empty() && parser_diagnostics.list().is_empty() {

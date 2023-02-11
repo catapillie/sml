@@ -1,7 +1,7 @@
 use std::mem;
 
 use crate::{
-    diagnostics::ParserDiagnosticKind,
+    diagnostics::{LexerDiagnosticKind, ParserDiagnosticKind},
     lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind, token_span::TokenSpan},
     DiagnosticList, Lexer,
 };
@@ -27,10 +27,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // we (currently) need to access the lexer through the parser,
-    // because we pass lexer's mutable reference to the parser.
-    pub fn lexer(&self) -> &Lexer<'a> {
-        &self.lexer
+    pub fn lexer_diagnostics(&self) -> &DiagnosticList<LexerDiagnosticKind> {
+        self.lexer.diagnostics()
     }
 
     pub fn diagnostics(&self) -> &DiagnosticList<ParserDiagnosticKind> {
