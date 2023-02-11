@@ -6,7 +6,7 @@ use crate::{
     DiagnosticList, Lexer,
 };
 
-use super::{expression::Expression, parser_ast::ParserAST};
+use super::{associativity::Associativity, expression::Expression, parser_ast::ParserAST};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -105,6 +105,14 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            if precedence_ahead == precedence {
+                let associativity = self.operator_associativity().unwrap(); // unwrap because every operator has an associativity
+
+                if let Associativity::Left = associativity {
+                    break;
+                }
+            }
+
             // we can parse the operation here.
             // consume the operator, parse next operation *with higher precedence*.
             // put the left expression as left operand.
@@ -140,6 +148,20 @@ impl<'a> Parser<'a> {
         match self.lookahead.kind().discr() {
             TokenDiscr::Plus => Some(50),
             TokenDiscr::Minus => Some(50),
+            _ => None,
+        }
+    }
+
+    // returns None if lookahead is not an operator.
+    fn operator_associativity(&self) -> Option<Associativity> {
+        match self.lookahead.kind().discr() {
+            TokenDiscr::Ampersand => Some(Associativity::Left),
+            TokenDiscr::Pipe => Some(Associativity::Left),
+            TokenDiscr::Asterisk => Some(Associativity::Left),
+            TokenDiscr::Slash => Some(Associativity::Left),
+            TokenDiscr::Plus => Some(Associativity::Left),
+            TokenDiscr::Minus => Some(Associativity::Left),
+            TokenDiscr::Equal => Some(Associativity::Right),
             _ => None,
         }
     }
