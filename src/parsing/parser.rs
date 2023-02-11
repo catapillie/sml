@@ -77,15 +77,21 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expression(&mut self) -> Expression<'a> {
-        self.parse_operation_expression(0)
+        self.parse_operation_expression(0, Associativity::Left)
     }
 
-    fn parse_operation_expression(&mut self, precedence: u8) -> Expression<'a> {
+    fn parse_operation_expression(
+        &mut self,
+        precedence: u8,
+        associativity: Associativity,
+    ) -> Expression<'a> {
         let mut left = if let Some(precedence_ahead) = self.unary_operator_precedence() {
             let operator = self.consume();
             Expression::UnaryOperation {
                 operator,
-                operand: Box::new(self.parse_operation_expression(precedence_ahead)),
+                operand: Box::new(
+                    self.parse_operation_expression(precedence_ahead, Associativity::Left),
+                ),
             }
         } else {
             self.parse_primary_expression()
@@ -105,19 +111,22 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            // the operator located ahead has the same precedence.
+            // we thus have to check the associativity to determine the order of the operation
             if precedence_ahead == precedence {
-                let associativity = self.operator_associativity().unwrap(); // unwrap because every operator has an associativity
-
+                // the associativity is to the left, we have to break
                 if let Associativity::Left = associativity {
                     break;
                 }
             }
 
+            let associativity_ahead = self.operator_associativity().unwrap(); // unwrap because every operator has an associativity
+
             // we can parse the operation here.
             // consume the operator, parse next operation *with higher precedence*.
             // put the left expression as left operand.
             let operator = self.consume();
-            let right = self.parse_operation_expression(precedence_ahead);
+            let right = self.parse_operation_expression(precedence_ahead, associativity_ahead);
             left = Expression::BinaryOperation {
                 left_operand: Box::new(left),
                 operator,
