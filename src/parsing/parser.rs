@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
     }
 
     fn expect(&mut self, expected: TokenDiscr) -> Token<'a> {
-        let found = self.lookahead.kind().discr();
+        let found = self.lookahead.discr();
         if found == expected {
             self.consume()
         } else {
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
                     self.diagnostics.push_kind(
                         ParserDiagnosticKind::UnexpectedToken {
                             expected,
-                            found: self.lookahead.kind().discr(),
+                            found: self.lookahead.discr(),
                         },
                         span,
                     );
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
     }
 
     fn try_expect(&mut self, expected: TokenDiscr) -> Option<Token<'a>> {
-        if self.lookahead.kind().discr() == expected {
+        if self.lookahead.discr() == expected {
             Some(self.consume())
         } else {
             None
@@ -83,23 +83,22 @@ impl<'a> Parser<'a> {
         precedence: u8,
         associativity: Associativity,
     ) -> Expression<'a> {
-        let mut left = if let Some(precedence_ahead) =
-            self.lookahead.kind().discr().unary_operator_precedence()
-        {
-            let operator = self.consume();
-            Expression::UnaryOperation {
-                operator,
-                operand: Box::new(
-                    self.parse_operation_expression(precedence_ahead, Associativity::Left),
-                ),
-            }
-        } else {
-            self.parse_primary_expression()
-        };
+        let mut left =
+            if let Some(precedence_ahead) = self.lookahead.discr().unary_operator_precedence() {
+                let operator = self.consume();
+                Expression::UnaryOperation {
+                    operator,
+                    operand: Box::new(
+                        self.parse_operation_expression(precedence_ahead, Associativity::Left),
+                    ),
+                }
+            } else {
+                self.parse_primary_expression()
+            };
 
         loop {
             // no operator ahead, break and return immediately the primary expression.
-            let Some(precedence_ahead) = self.lookahead.kind().discr().binary_operator_precedence() else {
+            let Some(precedence_ahead) = self.lookahead.discr().binary_operator_precedence() else {
                 break;
             };
 
@@ -125,7 +124,7 @@ impl<'a> Parser<'a> {
             // put the left expression as left operand.
             let operator = self.consume();
 
-            let associativity_ahead = operator.kind().discr().operator_associativity().unwrap(); // unwrap because every operator has an associativity
+            let associativity_ahead = operator.discr().operator_associativity().unwrap(); // unwrap because every operator has an associativity
 
             let right = self.parse_operation_expression(precedence_ahead, associativity_ahead);
             left = Expression::BinaryOperation {
@@ -140,7 +139,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_primary_expression(&mut self) -> Expression<'a> {
-        match self.lookahead.kind().discr() {
+        match self.lookahead.discr() {
             TokenDiscr::Int | TokenDiscr::String | TokenDiscr::Identifier => Expression::Literal {
                 token: self.consume(),
             },
