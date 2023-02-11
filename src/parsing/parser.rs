@@ -83,7 +83,9 @@ impl<'a> Parser<'a> {
         precedence: u8,
         associativity: Associativity,
     ) -> Expression<'a> {
-        let mut left = if let Some(precedence_ahead) = self.unary_operator_precedence() {
+        let mut left = if let Some(precedence_ahead) =
+            self.lookahead.kind().discr().unary_operator_precedence()
+        {
             let operator = self.consume();
             Expression::UnaryOperation {
                 operator,
@@ -97,7 +99,7 @@ impl<'a> Parser<'a> {
 
         loop {
             // no operator ahead, break and return immediately the primary expression.
-            let Some(precedence_ahead) = self.binary_operator_precedence() else {
+            let Some(precedence_ahead) = self.lookahead.kind().discr().binary_operator_precedence() else {
                 break;
             };
 
@@ -118,12 +120,13 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            let associativity_ahead = self.operator_associativity().unwrap(); // unwrap because every operator has an associativity
-
             // we can parse the operation here.
             // consume the operator, parse next operation *with higher precedence*.
             // put the left expression as left operand.
             let operator = self.consume();
+
+            let associativity_ahead = operator.kind().discr().operator_associativity().unwrap(); // unwrap because every operator has an associativity
+
             let right = self.parse_operation_expression(precedence_ahead, associativity_ahead);
             left = Expression::BinaryOperation {
                 left_operand: Box::new(left),
@@ -134,43 +137,6 @@ impl<'a> Parser<'a> {
 
         // finally return the built expression.
         left
-    }
-
-    // returns None if lookahead is not an operator.
-    fn binary_operator_precedence(&self) -> Option<u8> {
-        match self.lookahead.kind().discr() {
-            TokenDiscr::Ampersand => Some(30),
-            TokenDiscr::Pipe => Some(30),
-            TokenDiscr::Asterisk => Some(30),
-            TokenDiscr::Slash => Some(30),
-            TokenDiscr::Plus => Some(20),
-            TokenDiscr::Minus => Some(20),
-            TokenDiscr::Equal => Some(10),
-            _ => None,
-        }
-    }
-
-    // returns None if lookahead is not a unary operator.
-    fn unary_operator_precedence(&self) -> Option<u8> {
-        match self.lookahead.kind().discr() {
-            TokenDiscr::Plus => Some(50),
-            TokenDiscr::Minus => Some(50),
-            _ => None,
-        }
-    }
-
-    // returns None if lookahead is not an operator.
-    fn operator_associativity(&self) -> Option<Associativity> {
-        match self.lookahead.kind().discr() {
-            TokenDiscr::Ampersand => Some(Associativity::Left),
-            TokenDiscr::Pipe => Some(Associativity::Left),
-            TokenDiscr::Asterisk => Some(Associativity::Left),
-            TokenDiscr::Slash => Some(Associativity::Left),
-            TokenDiscr::Plus => Some(Associativity::Left),
-            TokenDiscr::Minus => Some(Associativity::Left),
-            TokenDiscr::Equal => Some(Associativity::Right),
-            _ => None,
-        }
     }
 
     fn parse_primary_expression(&mut self) -> Expression<'a> {
