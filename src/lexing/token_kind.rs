@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::{token_discr::TokenDiscr};
+use super::token_discr::TokenDiscr;
 
 #[derive(Debug, PartialEq)]
 #[derive(enum_assoc::Assoc)]
@@ -38,13 +38,32 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::Colon)] Colon,
     #[assoc(discr = TokenDiscr::Semicolon)] Semicolon,
 
-    #[assoc(discr = TokenDiscr::Equal)] Equal,
     #[assoc(discr = TokenDiscr::Plus)] Plus,
     #[assoc(discr = TokenDiscr::Minus)] Minus,
     #[assoc(discr = TokenDiscr::Asterisk)] Asterisk,
     #[assoc(discr = TokenDiscr::Slash)] Slash,
     #[assoc(discr = TokenDiscr::Ampersand)] Ampersand,
     #[assoc(discr = TokenDiscr::Pipe)] Pipe,
+
+    #[assoc(discr = TokenDiscr::EqualEqual)] EqualEqual,
+    #[assoc(discr = TokenDiscr::NotEqual)] NotEqual,
+    #[assoc(discr = TokenDiscr::LessOrEqual)] LessOrEqual,
+    #[assoc(discr = TokenDiscr::GreaterOrEqual)] GreaterOrEqual,
+
+    #[assoc(discr = TokenDiscr::Equal)] Equal,
+    #[assoc(discr = TokenDiscr::PlusEqual)] PlusEqual,
+    #[assoc(discr = TokenDiscr::MinusEqual)] MinusEqual,
+    #[assoc(discr = TokenDiscr::AsteriskEqual)] AsteriskEqual,
+    #[assoc(discr = TokenDiscr::SlashEqual)] SlashEqual,
+    #[assoc(discr = TokenDiscr::AmpersandEqual)] AmpersandEqual,
+    #[assoc(discr = TokenDiscr::PipeEqual)] PipeEqual,
+
+    #[assoc(discr = TokenDiscr::RightShift)] RightShift,
+    #[assoc(discr = TokenDiscr::LeftShift)] LeftShift,
+
+    #[assoc(discr = TokenDiscr::Not)] Not,
+    #[assoc(discr = TokenDiscr::PlusPlus)] PlusPlus,
+    #[assoc(discr = TokenDiscr::MinusMinus)] MinusMinus,
 
     #[assoc(discr = TokenDiscr::Eof)] Eof,
 

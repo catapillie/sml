@@ -55,21 +55,72 @@ impl<'a> Lexer<'a> {
             ']' => TokenKind::RightBracket,
             '{' => TokenKind::LeftBrace,
             '}' => TokenKind::RightBrace,
-            '<' => TokenKind::LeftChevron,
-            '>' => TokenKind::RightChevron,
 
             '.' => TokenKind::Dot,
             ',' => TokenKind::Comma,
             ':' => TokenKind::Colon,
             ';' => TokenKind::Semicolon,
 
-            '=' => TokenKind::Equal,
-            '+' => TokenKind::Plus,
-            '-' => TokenKind::Minus,
-            '*' => TokenKind::Asterisk,
-            '/' => TokenKind::Slash,
-            '&' => TokenKind::Ampersand,
-            '|' => TokenKind::Pipe,
+            '=' | '!' | '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' => {
+                if let Some('=') = self.cursor.peek() {
+                    self.cursor.consume();
+                    match c {
+                        '=' => TokenKind::EqualEqual,
+                        '!' => TokenKind::NotEqual,
+                        '+' => TokenKind::PlusEqual,
+                        '-' => TokenKind::MinusEqual,
+                        '*' => TokenKind::AsteriskEqual,
+                        '/' => TokenKind::SlashEqual,
+                        '&' => TokenKind::AmpersandEqual,
+                        '|' => TokenKind::PipeEqual,
+                        '<' => TokenKind::LessOrEqual,
+                        '>' => TokenKind::GreaterOrEqual,
+                        _ => unreachable!(),
+                    }
+                } else {
+                    match c {
+                        '=' => TokenKind::Equal,
+                        '!' => TokenKind::Not,
+                        '+' => {
+                            if let Some('+') = self.cursor.peek() {
+                                self.cursor.consume();
+                                TokenKind::PlusPlus
+                            } else {
+                                TokenKind::Plus
+                            }
+                        }
+                        '-' => {
+                            if let Some('-') = self.cursor.peek() {
+                                self.cursor.consume();
+                                TokenKind::MinusMinus
+                            } else {
+                                TokenKind::Minus
+                            }
+                        }
+                        '*' => TokenKind::Asterisk,
+                        '/' => TokenKind::Slash,
+                        '&' => TokenKind::Ampersand,
+                        '|' => TokenKind::Pipe,
+                        '<' => {
+                            if let Some('<') = self.cursor.peek() {
+                                self.cursor.consume();
+                                TokenKind::LeftShift
+                            } else {
+                                TokenKind::LeftChevron
+                            }
+                        }
+                        '>' => {
+                            if let Some('>') = self.cursor.peek() {
+                                self.cursor.consume();
+                                TokenKind::RightShift
+                            } else {
+                                TokenKind::RightChevron
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
 
             _ => {
                 let span = TokenSpan::new(start_index, self.cursor.offset());
@@ -437,13 +488,28 @@ mod tests {
     test_tokens!(test_comma { "," => TokenKind::Comma });
     test_tokens!(test_colon { ":" => TokenKind::Colon });
     test_tokens!(test_semicolon { ";" => TokenKind::Semicolon });
-    test_tokens!(test_equal { "=" => TokenKind::Equal });
     test_tokens!(test_plus { "+" => TokenKind::Plus });
     test_tokens!(test_minus { "-" => TokenKind::Minus });
     test_tokens!(test_asterisk { "*" => TokenKind::Asterisk });
     test_tokens!(test_slash { "/" => TokenKind::Slash });
     test_tokens!(test_ampersand { "&" => TokenKind::Ampersand });
     test_tokens!(test_pipe { "|" => TokenKind::Pipe });
+    test_tokens!(test_equal { "=" => TokenKind::Equal });
+    test_tokens!(test_plus_equal { "+=" => TokenKind::PlusEqual });
+    test_tokens!(test_minus_equal { "-=" => TokenKind::MinusEqual });
+    test_tokens!(test_asterisk_equal { "*=" => TokenKind::AsteriskEqual });
+    test_tokens!(test_slash_equal { "/=" => TokenKind::SlashEqual });
+    test_tokens!(test_ampersand_equal { "&=" => TokenKind::AmpersandEqual });
+    test_tokens!(test_pipe_equal { "|=" => TokenKind::PipeEqual });
+    test_tokens!(test_equal_equal { "==" => TokenKind::EqualEqual });
+    test_tokens!(test_not_equal { "!=" => TokenKind::NotEqual });
+    test_tokens!(test_less_or_equal { "<=" => TokenKind::LessOrEqual });
+    test_tokens!(test_greater_or_equal { ">=" => TokenKind::GreaterOrEqual });
+    test_tokens!(test_left_shift { "<<" => TokenKind::LeftShift });
+    test_tokens!(test_right_shift { ">>" => TokenKind::RightShift });
+    test_tokens!(test_not { "!" => TokenKind::Not });
+    test_tokens!(test_plus_plus { "++" => TokenKind::PlusPlus });
+    test_tokens!(test_minus_minus { "--" => TokenKind::MinusMinus });
     test_tokens!(test_eof { "" => TokenKind::Eof });
 
     test_tokens!(test_fn_main {
