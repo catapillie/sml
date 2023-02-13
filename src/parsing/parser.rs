@@ -6,7 +6,12 @@ use crate::{
     DiagnosticList, Lexer,
 };
 
-use super::{associativity::Associativity, expression::Expression, parser_ast::ParserAST};
+use super::{
+    expression::Expression,
+    operator::{BinaryOperator, PreUnaryOperator},
+    parser_ast::ParserAST,
+    priority::Priority,
+};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -75,48 +80,35 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expression(&mut self) -> Expression<'a> {
-        self.parse_operation_expression(0, Associativity::Left)
+        self.parse_operation_expression(Priority::default())
     }
 
-    fn parse_operation_expression(
-        &mut self,
-        precedence: u8,
-        associativity: Associativity,
-    ) -> Expression<'a> {
-        let mut left =
-            if let Some(precedence_ahead) = self.lookahead.discr().unary_operator_precedence() {
-                let operator = self.consume();
-                Expression::UnaryOperation {
-                    operator,
-                    operand: Box::new(
-                        self.parse_operation_expression(precedence_ahead, Associativity::Left),
-                    ),
-                }
-            } else {
-                self.parse_primary_expression()
-            };
+    fn parse_operation_expression(&mut self, priority: Priority) -> Expression<'a> {
+        let mut left = if let Ok(pre_unary_operator) = PreUnaryOperator::try_from(&self.lookahead) {
+            let priority_ahead = pre_unary_operator.priority();
+            let operator = self.consume();
+            Expression::UnaryOperation {
+                operator,
+                operand: Box::new(self.parse_operation_expression(priority_ahead)),
+            }
+        } else {
+            self.parse_primary_expression()
+        };
 
         loop {
             // no operator ahead, break and return immediately the primary expression.
-            let Some(precedence_ahead) = self.lookahead.discr().binary_operator_precedence() else {
+            let Ok(binary_operator) = BinaryOperator::try_from(&self.lookahead) else {
                 break;
             };
 
-            // the operator located ahead has lower precedence.
+            let priority_ahead = binary_operator.priority();
+
+            // the operator located ahead has lower priority.
             // we thus have to break early, return the current operator,
             // and let the previous call build the binary expression,
             // so that the tree accurately respects the order of operations that we defined.
-            if precedence_ahead < precedence {
+            if priority.is_greater_than_ahead(&priority_ahead) {
                 break;
-            }
-
-            // the operator located ahead has the same precedence.
-            // we thus have to check the associativity to determine the order of the operation
-            if precedence_ahead == precedence {
-                // the associativity is to the left, we have to break
-                if let Associativity::Left = associativity {
-                    break;
-                }
             }
 
             // we can parse the operation here.
@@ -124,9 +116,7 @@ impl<'a> Parser<'a> {
             // put the left expression as left operand.
             let operator = self.consume();
 
-            let associativity_ahead = operator.discr().operator_associativity().unwrap(); // unwrap because every operator has an associativity
-
-            let right = self.parse_operation_expression(precedence_ahead, associativity_ahead);
+            let right = self.parse_operation_expression(priority_ahead);
             left = Expression::BinaryOperation {
                 left_operand: Box::new(left),
                 operator,
