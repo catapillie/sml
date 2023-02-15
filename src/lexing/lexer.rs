@@ -43,6 +43,10 @@ impl<'a> Lexer<'a> {
             return tok;
         }
 
+        if let Some(tok) = self.try_lex_character() {
+            return tok;
+        }
+
         let start_index = self.cursor.offset();
 
         self.cursor.consume();
@@ -287,7 +291,7 @@ impl<'a> Lexer<'a> {
             }
 
             // Try to parse the escape sequence.
-            let Some(c) = self.try_parse_string_escape_sequence() else {
+            let Some(c) = self.try_parse_escape_sequence() else {
                 // The string is malformed.
                 string = None;
                 continue 'outer_loop
@@ -317,7 +321,47 @@ impl<'a> Lexer<'a> {
         Some(Token::new(kind, span))
     }
 
-    fn try_parse_string_escape_sequence(&mut self) -> Option<char> {
+    fn try_lex_character(&mut self) -> Option<Token<'a>> {
+        let start_index = self.cursor.offset();
+
+        let Some('\'') = self.cursor.peek() else {
+            return None;
+        };
+        self.cursor.consume();
+
+        let c = {
+            let Some(c) = self.cursor.next() else {
+                return Some(Token::new(TokenKind::MalformedCharacter, TokenSpan::new(
+                        start_index,
+                        self.cursor.offset(),
+                    )
+                ))
+            };
+            if c == '\\' {
+                let Some(c) = self.try_parse_escape_sequence() else {
+                    return Some(Token::new(TokenKind::MalformedCharacter, TokenSpan::new(
+                            start_index,
+                            self.cursor.offset(),
+                        )
+                    ))
+                };
+                c
+            } else {
+                c
+            }
+        };
+
+        Some(Token::new(
+            if let Some('\'') = self.cursor.next() {
+                TokenKind::Character(c)
+            } else {
+                TokenKind::MalformedCharacter
+            },
+            TokenSpan::new(start_index, self.cursor.offset()),
+        ))
+    }
+
+    fn try_parse_escape_sequence(&mut self) -> Option<char> {
         Some(match self.cursor.next()? {
             'n' => '\n',
             't' => '\t',
@@ -325,6 +369,7 @@ impl<'a> Lexer<'a> {
             '\\' => '\\',
             '0' => '\0',
             '"' => '"',
+            '\'' => '\'',
             'x' => self.try_parse_ascii_escape_sequence()?,
             'u' => self.try_parse_unicode_escape_sequence()?,
             c => {
@@ -476,6 +521,11 @@ mod tests {
     test_tokens!(test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => TokenKind::String("hello\nhi\twhat\ridk\\yes\0or\"no".into()) });
     test_tokens!(test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => TokenKind::String("\x5E\x6F\x61\u{102}\u{12345}\u{103456}".into()) });
     test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString });
+    test_tokens!(test_character_a { "'a'" => TokenKind::Character('a') });
+    test_tokens!(test_character_b { "'b'" => TokenKind::Character('b') });
+    test_tokens!(test_character_ascii_escape { "'\\x5E'" => TokenKind::Character('\x5E') });
+    test_tokens!(test_character_unicode_escape { "'\\u{102}'" => TokenKind::Character('\u{102}') });
+    test_tokens!(test_character_malformed { "'m" => TokenKind::MalformedCharacter });
     test_tokens!(test_left_paren { "(" => TokenKind::LeftParen });
     test_tokens!(test_right_paren { ")" => TokenKind::RightParen });
     test_tokens!(test_left_bracket { "[" => TokenKind::LeftBracket });

@@ -24,6 +24,9 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::String)] String(Cow<'a, str>),
     #[assoc(discr = TokenDiscr::String)] MalformedString,
 
+    #[assoc(discr = TokenDiscr::Character)] Character(char),
+    #[assoc(discr = TokenDiscr::Character)] MalformedCharacter,
+
     #[assoc(discr = TokenDiscr::LeftParen)] LeftParen,
     #[assoc(discr = TokenDiscr::RightParen)] RightParen,
     #[assoc(discr = TokenDiscr::LeftBracket)] LeftBracket,
