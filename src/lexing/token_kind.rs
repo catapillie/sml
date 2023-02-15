@@ -21,6 +21,9 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::Int)] Int(u64),
     #[assoc(discr = TokenDiscr::Int)] MalformedInt,
 
+    #[assoc(discr = TokenDiscr::Float)] Float(f64),
+    #[assoc(discr = TokenDiscr::Float)] MalformedFloat,
+
     #[assoc(discr = TokenDiscr::String)] String(Cow<'a, str>),
     #[assoc(discr = TokenDiscr::String)] MalformedString,
 

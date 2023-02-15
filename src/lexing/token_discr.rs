@@ -11,6 +11,7 @@ pub enum TokenDiscr {
 
     Identifier,
     Int,
+    Float,
     String,
     Character,
 

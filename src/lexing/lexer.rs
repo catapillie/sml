@@ -202,14 +202,45 @@ impl<'a> Lexer<'a> {
     fn try_lex_number(&mut self) -> Option<Token<'a>> {
         let start_index = self.cursor.offset();
 
-        let mut peek_iter = self.cursor.peek_iter();
+        let mut cursor = self.cursor.clone();
 
-        if !matches!(peek_iter.next(), Some(c) if c.is_ascii_digit()) {
+        let Some(mut peek) = cursor.peek() else {
+            return None;
+        };
+
+        let mut is_float = false;
+
+        if peek == '.' {
+            cursor.consume();
+
+            let Some(peek_after) = cursor.peek() else {
+                return None;
+            };
+
+            peek = peek_after;
+
+            is_float = true;
+        }
+
+        if !peek.is_ascii_digit() {
             return None;
         }
 
+        self.cursor = cursor;
+
+        let peek_iter = self.cursor.peek_iter();
+
+        let mut ends_with_dot = false;
+
         for next_char in peek_iter {
+            ends_with_dot = false;
+
             if !next_char.is_ascii_digit() {
+                if !is_float && next_char == '.' {
+                    is_float = true;
+                    ends_with_dot = true;
+                    continue;
+                }
                 break;
             }
         }
@@ -220,17 +251,39 @@ impl<'a> Lexer<'a> {
         let span = TokenSpan::new(start_index, self.cursor.offset());
         let text = span.slice(self.source);
 
-        let kind = if has_word {
-            self.diagnostics
-                .push_kind(LexerDiagnosticKind::InvalidIntegerTrailingWord, span);
-            TokenKind::MalformedInt
+        if ends_with_dot {
+            return Some(Token::new(TokenKind::MalformedFloat, span));
+        }
+
+        #[allow(clippy::collapsible_else_if)]
+        let kind = if !is_float {
+            if has_word {
+                self.diagnostics
+                    .push_kind(LexerDiagnosticKind::InvalidIntegerTrailingWord, span);
+                TokenKind::MalformedInt
+            } else {
+                match text.parse() {
+                    Ok(num) => TokenKind::Int(num),
+                    Err(_) => {
+                        self.diagnostics
+                            .push_kind(LexerDiagnosticKind::InvalidIntegerTooLarge, span);
+                        TokenKind::MalformedInt
+                    }
+                }
+            }
         } else {
-            match text.parse() {
-                Ok(num) => TokenKind::Int(num),
-                Err(_) => {
-                    self.diagnostics
-                        .push_kind(LexerDiagnosticKind::InvalidIntegerTooLarge, span);
-                    TokenKind::MalformedInt
+            if has_word {
+                self.diagnostics
+                    .push_kind(LexerDiagnosticKind::InvalidFloatTrailingWord, span);
+                TokenKind::MalformedFloat
+            } else {
+                match text.parse() {
+                    Ok(num) => TokenKind::Float(num),
+                    Err(_) => {
+                        self.diagnostics
+                            .push_kind(LexerDiagnosticKind::InvalidFloat, span);
+                        TokenKind::MalformedFloat
+                    }
                 }
             }
         };
@@ -516,6 +569,10 @@ mod tests {
     test_tokens!(test_integer_65536 { "65536" => TokenKind::Int(65536) });
     test_tokens!(test_integer_1 { "1" => TokenKind::Int(1) });
     test_tokens!(test_integer_2048_malformed { "2048malformed" => TokenKind::MalformedInt });
+    test_tokens!(test_float_2_5 { "2.5" => TokenKind::Float(2.5) });
+    test_tokens!(test_float_0_2 { ".2" => TokenKind::Float(0.2) });
+    test_tokens!(test_float_2_0 { "2." => TokenKind::MalformedFloat });
+    test_tokens!(test_float_20_48_malformed { "20.48malformed" => TokenKind::MalformedFloat });
     test_tokens!(test_string_empty { "\"\"" => TokenKind::String("".into()) });
     test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String("this is a string literal".into()) });
     test_tokens!(test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => TokenKind::String("hello\nhi\twhat\ridk\\yes\0or\"no".into()) });
