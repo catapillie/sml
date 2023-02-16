@@ -81,23 +81,74 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_statement(&mut self) -> Statement<'a> {
-        if let Some(left_brace) = self.try_expect(TokenDiscr::LeftBrace) {
-            let mut statements = Vec::new();
+        match self.lookahead.discr() {
+            TokenDiscr::LeftBrace => {
+                let left_brace = self.consume();
 
-            while !matches!(self.lookahead.discr(), TokenDiscr::RightBrace | TokenDiscr::Eof) {
-                statements.push(self.parse_statement());
+                let mut statements = Vec::new();
+                while !matches!(self.lookahead.discr(), TokenDiscr::RightBrace | TokenDiscr::Eof) {
+                    statements.push(self.parse_statement());
+                }
+
+                let right_brace = self.expect(TokenDiscr::RightBrace);
+
+                Statement::Block {
+                    left_brace,
+                    statements,
+                    right_brace,
+                }
             }
 
-            let right_brace = self.expect(TokenDiscr::RightBrace);
+            TokenDiscr::KeywordIf => {
+                let if_token = self.consume();
+                let condition = self.parse_expression();
+                let statement = Box::new(self.parse_statement());
 
-            return Statement::Block {
-                left_brace,
-                statements,
-                right_brace,
-            };
+                Statement::If {
+                    if_token,
+                    condition,
+                    statement,
+                }
+            },
+
+            TokenDiscr::KeywordUnless => {
+                let unless_token = self.consume();
+                let condition = self.parse_expression();
+                let statement = Box::new(self.parse_statement());
+
+                Statement::Unless {
+                    unless_token,
+                    condition,
+                    statement,
+                }
+            }
+
+            TokenDiscr::KeywordWhile => {
+                let while_token = self.consume();
+                let condition = self.parse_expression();
+                let statement = Box::new(self.parse_statement());
+
+                Statement::While {
+                    while_token,
+                    condition,
+                    statement,
+                }
+            },
+
+            TokenDiscr::KeywordUntil => {
+                let until_token = self.consume();
+                let condition = self.parse_expression();
+                let statement = Box::new(self.parse_statement());
+
+                Statement::Until {
+                    until_token,
+                    condition,
+                    statement,
+                }
+            },
+
+            _ => Statement::None,
         }
-
-        Statement::None
     }
 
     pub fn parse_expression(&mut self) -> Expression<'a> {
