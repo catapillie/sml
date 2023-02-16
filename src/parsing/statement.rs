@@ -4,6 +4,12 @@ use super::expression::Expression;
 
 #[derive(Debug)]
 pub enum Statement<'a> {
+    None,
+    Block {
+        left_brace: Token<'a>,
+        statements: Vec<Statement<'a>>,
+        right_brace: Token<'a>,
+    },
     If {
         if_token: Token<'a>,
         condition: Expression<'a>,

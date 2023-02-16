@@ -11,6 +11,7 @@ use super::{
     operator::{BinaryOperator, PreUnaryOperator},
     parser_ast::ParserAST,
     priority::Priority,
+    statement::Statement,
 };
 
 pub struct Parser<'a> {
@@ -77,6 +78,26 @@ impl<'a> Parser<'a> {
         } else {
             None
         }
+    }
+
+    pub fn parse_statement(&mut self) -> Statement<'a> {
+        if let Some(left_brace) = self.try_expect(TokenDiscr::LeftBrace) {
+            let mut statements = Vec::new();
+
+            while !matches!(self.lookahead.discr(), TokenDiscr::RightBrace | TokenDiscr::Eof) {
+                statements.push(self.parse_statement());
+            }
+
+            let right_brace = self.expect(TokenDiscr::RightBrace);
+
+            return Statement::Block {
+                left_brace,
+                statements,
+                right_brace,
+            };
+        }
+
+        Statement::None
     }
 
     pub fn parse_expression(&mut self) -> Expression<'a> {
