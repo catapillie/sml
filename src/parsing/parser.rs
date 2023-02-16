@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, thread::LocalKey};
 
 use crate::{
     diagnostics::{LexerDiagnosticKind, ParserDiagnosticKind},
@@ -86,9 +86,11 @@ impl<'a> Parser<'a> {
                 let left_brace = self.consume();
 
                 let mut statements = Vec::new();
+
+                #[rustfmt::skip]
                 while !matches!(self.lookahead.discr(), TokenDiscr::RightBrace | TokenDiscr::Eof) {
                     statements.push(self.parse_statement());
-                }
+                };
 
                 let right_brace = self.expect(TokenDiscr::RightBrace);
 
@@ -109,7 +111,7 @@ impl<'a> Parser<'a> {
                     condition,
                     statement,
                 }
-            },
+            }
 
             TokenDiscr::KeywordUnless => {
                 let unless_token = self.consume();
@@ -133,7 +135,7 @@ impl<'a> Parser<'a> {
                     condition,
                     statement,
                 }
-            },
+            }
 
             TokenDiscr::KeywordUntil => {
                 let until_token = self.consume();
@@ -145,9 +147,30 @@ impl<'a> Parser<'a> {
                     condition,
                     statement,
                 }
-            },
+            }
 
-            _ => Statement::None,
+            _ => {
+                if let Some(expression) = self.try_parse_expression() {
+                    let semicolon = self.expect(TokenDiscr::Semicolon);
+                    return Statement::Expression {
+                        expression,
+                        semicolon,
+                    };
+                }
+
+                let tok = self.consume();
+                self.diagnostics
+                    .push_kind(ParserDiagnosticKind::ExpectedStatement, tok.span());
+                Statement::None
+            }
+        }
+    }
+
+    fn try_parse_expression(&mut self) -> Option<Expression<'a>> {
+        if self.is_expression_start() {
+            Some(self.parse_expression())
+        } else {
+            None
         }
     }
 
@@ -200,6 +223,7 @@ impl<'a> Parser<'a> {
         left
     }
 
+    // NOTE: beginning tokens of expressions MUST be added in `is_expression_start`!
     fn parse_primary_expression(&mut self) -> Expression<'a> {
         match self.lookahead.discr() {
             TokenDiscr::Int | TokenDiscr::String | TokenDiscr::Identifier => Expression::Literal {
@@ -223,5 +247,21 @@ impl<'a> Parser<'a> {
                 Expression::None
             }
         }
+    }
+
+    #[rustfmt::skip]
+    fn is_expression_start(&self) -> bool {
+        let discr = self.lookahead.discr();
+
+        // pre-unary operators are beginning of expressions.
+        if PreUnaryOperator::try_from(&self.lookahead).is_ok() {
+            return true;
+        }
+
+        // the tokens here are also beginning of expressions.
+        matches!(discr, TokenDiscr::Int
+                      | TokenDiscr::String
+                      | TokenDiscr::Identifier
+                      | TokenDiscr::LeftParen)
     }
 }

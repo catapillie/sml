@@ -29,5 +29,9 @@ pub enum Statement<'a> {
         until_token: Token<'a>,
         condition: Expression<'a>,
         statement: Box<Statement<'a>>,
+    },
+    Expression {
+        expression: Expression<'a>,
+        semicolon: Token<'a>,
     }
 }
