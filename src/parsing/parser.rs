@@ -226,7 +226,7 @@ impl<'a> Parser<'a> {
     // NOTE: beginning tokens of expressions MUST be added in `is_expression_start`!
     fn parse_primary_expression(&mut self) -> Expression<'a> {
         match self.lookahead.discr() {
-            TokenDiscr::Int | TokenDiscr::String | TokenDiscr::Identifier => Expression::Literal {
+            TokenDiscr::Int | TokenDiscr::Float | TokenDiscr::String | TokenDiscr::Character | TokenDiscr::Identifier => Expression::Literal {
                 token: self.consume(),
             },
             TokenDiscr::LeftParen => {
@@ -260,7 +260,9 @@ impl<'a> Parser<'a> {
 
         // the tokens here are also beginning of expressions.
         matches!(discr, TokenDiscr::Int
+                      | TokenDiscr::Float
                       | TokenDiscr::String
+                      | TokenDiscr::Character
                       | TokenDiscr::Identifier
                       | TokenDiscr::LeftParen)
     }
