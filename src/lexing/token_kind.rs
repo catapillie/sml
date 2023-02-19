@@ -71,10 +71,6 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::PlusPlus)] PlusPlus,
     #[assoc(discr = TokenDiscr::MinusMinus)] MinusMinus,
 
-    #[assoc(discr = TokenDiscr::LineComment)] LineComment,
-    #[assoc(discr = TokenDiscr::BlockComment)] BlockComment,
-    #[assoc(discr = TokenDiscr::BlockComment)] MalformedBlockComment,
-
     #[assoc(discr = TokenDiscr::Eof)] Eof,
 
     #[assoc(discr = fake_discr(self))] Fake(TokenDiscr),

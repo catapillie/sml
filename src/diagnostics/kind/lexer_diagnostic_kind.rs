@@ -21,6 +21,7 @@ pub enum LexerDiagnosticKind {
     #[assoc(id=0009)] #[assoc(severity=Error)] InvalidUnicodeCharacterCode,
     #[assoc(id=0010)] #[assoc(severity=Error)] InvalidUnicodeTooLong,
     #[assoc(id=0011)] #[assoc(severity=Error)] InvalidUnicodeDigit(char),
+    #[assoc(id=0012)] #[assoc(severity=Error)] UnclosedBlockComment,
 }
 
 impl DiagnosticKind for LexerDiagnosticKind {
@@ -48,6 +49,7 @@ impl DiagnosticKind for LexerDiagnosticKind {
             LexerDiagnosticKind::InvalidUnicodeCharacterCode => format!("The Unicode sequence '{source}' is invalid"),
             LexerDiagnosticKind::InvalidUnicodeTooLong => "The Unicode escape sequence is too long, and is thus invalid".to_string(),
             LexerDiagnosticKind::InvalidUnicodeDigit(c) => format!("The Unicode sequence must be a hexadecimal number, but '{c}' isn't a hexadecimal digit"),
+            LexerDiagnosticKind::UnclosedBlockComment => "Unclosed block comment, missing a \"*/\" at the end.".to_string(),
         }
     }
 }

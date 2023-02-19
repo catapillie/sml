@@ -31,6 +31,10 @@ impl<'a> Lexer<'a> {
             return self.lex();
         }
 
+        if self.ignore_comment() {
+            return self.lex();
+        }
+
         if let Some(tok) = self.try_lex_identifier_or_keyword() {
             return tok;
         }
@@ -44,10 +48,6 @@ impl<'a> Lexer<'a> {
         }
 
         if let Some(tok) = self.try_lex_character() {
-            return tok;
-        }
-
-        if let Some(tok) = self.try_lex_comment() {
             return tok;
         }
 
@@ -531,55 +531,52 @@ impl<'a> Lexer<'a> {
         None
     }
 
-    fn try_lex_comment(&mut self) -> Option<Token<'a>> {
+    fn ignore_comment(&mut self) -> bool {
         let start_index = self.cursor.offset();
 
         let mut cursor = self.cursor.clone();
 
         let Some('/') = cursor.next() else {
-            return None;
+            return false;
         };
 
-        Some(Token::new(
-            match cursor.next() {
-                // "// line comment"
-                Some('/') => {
-                    self.cursor = cursor;
+        match cursor.next() {
+            // "// line comment"
+            Some('/') => {
+                self.cursor = cursor;
 
-                    let mut peek_iter = self.cursor.peek_iter();
+                let mut peek_iter = self.cursor.peek_iter();
 
-                    while !matches!(peek_iter.next(), None | Some('\n')) {}
+                while !matches!(peek_iter.next(), None | Some('\n')) {}
 
-                    TokenKind::LineComment
-                }
-                // "/* block comment */"
-                Some('*') => {
-                    self.cursor = cursor;
+                true
+            }
+            // "/* block comment */"
+            Some('*') => {
+                self.cursor = cursor;
 
-                    let mut peek_iter = self.cursor.peek_iter();
+                let mut peek_iter = self.cursor.peek_iter();
 
-                    let mut kind = TokenKind::MalformedBlockComment;
+                while let Some(c) = peek_iter.next() {
+                    if c == '*' {
+                        if let Some('/') = peek_iter.next() {
+                            self.cursor.consume();
 
-                    while let Some(c) = peek_iter.next() {
-                        if c == '*' {
-                            if let Some('/') = peek_iter.next() {
-                                self.cursor.consume();
-
-                                kind = TokenKind::BlockComment;
-                                break;
-                            }
+                            return true;
                         }
                     }
-
-                    kind
                 }
 
-                None | Some(_) => {
-                    return None;
-                }
-            },
-            TokenSpan::new(start_index, self.cursor.offset()),
-        ))
+                self.diagnostics.push_kind(
+                    LexerDiagnosticKind::BlockCommentNotClosed,
+                    TokenSpan::new(start_index, self.cursor.offset()),
+                );
+
+                true
+            }
+
+            None | Some(_) => false,
+        }
     }
 }
 
@@ -672,11 +669,11 @@ mod tests {
     test_tokens!(test_not { "!" => TokenKind::Not });
     test_tokens!(test_plus_plus { "++" => TokenKind::PlusPlus });
     test_tokens!(test_minus_minus { "--" => TokenKind::MinusMinus });
-    test_tokens!(test_line_comment { "// hello how are you ?\n" => TokenKind::LineComment });
-    test_tokens!(test_line_comment_eof { "// hello how are you ?" => TokenKind::LineComment });
-    test_tokens!(test_block_comment { "/* hello how are you ? */" => TokenKind::BlockComment });
-    test_tokens!(test_block_comment_lf { "/* hello how\nare you ? */" => TokenKind::BlockComment });
-    test_tokens!(test_block_comment_malformed { "/* hello how\nare you ?* / *" => TokenKind::MalformedBlockComment });
+    test_tokens!(test_line_comment { "// hello how are you ?\n" => TokenKind::Eof });
+    test_tokens!(test_line_comment_eof { "// hello how are you ?" => TokenKind::Eof });
+    test_tokens!(test_block_comment { "/* hello how are you ? */" => TokenKind::Eof });
+    test_tokens!(test_block_comment_lf { "/* hello how\nare you ? */" => TokenKind::Eof });
+    test_tokens!(test_block_comment_malformed { "/* hello how\nare you ?* / *" => TokenKind::Eof });
     test_tokens!(test_eof { "" => TokenKind::Eof });
 
     test_tokens!(test_fn_main {

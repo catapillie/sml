@@ -56,8 +56,5 @@ pub enum TokenDiscr {
     PlusPlus,
     MinusMinus,
 
-    LineComment,
-    BlockComment,
-
     Eof,
 }
