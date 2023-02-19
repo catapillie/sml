@@ -22,18 +22,23 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn lex(&mut self) -> Token<'a> {
+        // do-while loop
+        while {
+            let peek_iter = self.cursor.peek_iter();
+
+            // skip all the white spaces
+            for c in peek_iter {
+                if !c.is_whitespace() {
+                    break;
+                }
+            }
+
+            self.ignore_comment()
+        } {}
+
         let Some(c) = self.cursor.peek() else {
             return Token::new(TokenKind::Eof, TokenSpan::empty(self.source.len()));
         };
-
-        if c.is_whitespace() {
-            self.cursor.consume();
-            return self.lex();
-        }
-
-        if self.ignore_comment() {
-            return self.lex();
-        }
 
         if let Some(tok) = self.try_lex_identifier_or_keyword() {
             return tok;
