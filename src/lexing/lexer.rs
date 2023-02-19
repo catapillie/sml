@@ -335,6 +335,11 @@ impl<'a> Lexer<'a> {
                         }
                     }
                     None => {
+                        self.diagnostics.push_kind(
+                            LexerDiagnosticKind::UnclosedString,
+                            TokenSpan::new(start_index, self.cursor.offset()),
+                        );
+
                         string = None;
                         break 'outer_loop;
                     }
@@ -568,7 +573,7 @@ impl<'a> Lexer<'a> {
                 }
 
                 self.diagnostics.push_kind(
-                    LexerDiagnosticKind::BlockCommentNotClosed,
+                    LexerDiagnosticKind::UnclosedBlockComment,
                     TokenSpan::new(start_index, self.cursor.offset()),
                 );
 
