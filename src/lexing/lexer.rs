@@ -79,7 +79,7 @@ impl<'a> Lexer<'a> {
                     self.cursor.consume();
                     match c {
                         '=' => TokenKind::EqualEqual,
-                        '!' => TokenKind::NotEqual,
+                        '!' => TokenKind::BangEqual,
                         '+' => TokenKind::PlusEqual,
                         '-' => TokenKind::MinusEqual,
                         '*' => TokenKind::AsteriskEqual,
@@ -93,7 +93,7 @@ impl<'a> Lexer<'a> {
                 } else {
                     match c {
                         '=' => TokenKind::Equal,
-                        '!' => TokenKind::Not,
+                        '!' => TokenKind::Bang,
                         '+' => {
                             if let Some('+') = self.cursor.peek() {
                                 self.cursor.consume();
@@ -682,12 +682,12 @@ mod tests {
     test_tokens!(test_ampersand_equal { "&=" => TokenKind::AmpersandEqual });
     test_tokens!(test_pipe_equal { "|=" => TokenKind::PipeEqual });
     test_tokens!(test_equal_equal { "==" => TokenKind::EqualEqual });
-    test_tokens!(test_not_equal { "!=" => TokenKind::NotEqual });
+    test_tokens!(test_not_equal { "!=" => TokenKind::BangEqual });
     test_tokens!(test_less_or_equal { "<=" => TokenKind::LessOrEqual });
     test_tokens!(test_greater_or_equal { ">=" => TokenKind::GreaterOrEqual });
     test_tokens!(test_left_shift { "<<" => TokenKind::LeftShift });
     test_tokens!(test_right_shift { ">>" => TokenKind::RightShift });
-    test_tokens!(test_not { "!" => TokenKind::Not });
+    test_tokens!(test_not { "!" => TokenKind::Bang });
     test_tokens!(test_plus_plus { "++" => TokenKind::PlusPlus });
     test_tokens!(test_minus_minus { "--" => TokenKind::MinusMinus });
     test_tokens!(test_line_comment { "// hello how are you ?\n" => TokenKind::Eof });

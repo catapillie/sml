@@ -52,7 +52,7 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::Pipe)] Pipe,
 
     #[assoc(discr = TokenDiscr::EqualEqual)] EqualEqual,
-    #[assoc(discr = TokenDiscr::NotEqual)] NotEqual,
+    #[assoc(discr = TokenDiscr::BangEqual)] BangEqual,
     #[assoc(discr = TokenDiscr::LessOrEqual)] LessOrEqual,
     #[assoc(discr = TokenDiscr::GreaterOrEqual)] GreaterOrEqual,
 
@@ -67,7 +67,7 @@ pub enum TokenKind<'a> {
     #[assoc(discr = TokenDiscr::RightShift)] RightShift,
     #[assoc(discr = TokenDiscr::LeftShift)] LeftShift,
 
-    #[assoc(discr = TokenDiscr::Not)] Not,
+    #[assoc(discr = TokenDiscr::Bang)] Bang,
     #[assoc(discr = TokenDiscr::PlusPlus)] PlusPlus,
     #[assoc(discr = TokenDiscr::MinusMinus)] MinusMinus,
 

@@ -37,7 +37,7 @@ pub enum TokenDiscr {
     Pipe,
 
     EqualEqual,
-    NotEqual,
+    BangEqual,
     LessOrEqual,
     GreaterOrEqual,
 
@@ -52,7 +52,7 @@ pub enum TokenDiscr {
     LeftShift,
     RightShift,
 
-    Not,
+    Bang,
     PlusPlus,
     MinusMinus,
 

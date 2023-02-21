@@ -19,7 +19,7 @@ pub enum BinaryOperator {
     RightShift,
 
     EqualEqual,
-    NotEqual,
+    BangEqual,
     LeftChevron,
     RightChevron,
     LessOrEqual,
@@ -36,7 +36,7 @@ pub enum BinaryOperator {
 
 #[derive(Debug, Clone, Copy)]
 pub enum PreUnaryOperator {
-    Not,
+    Bang,
     PlusPlus,
     MinusMinus,
     Plus,
@@ -69,7 +69,7 @@ impl BinaryOperator {
             Self::RightShift     => 30,
 
             Self::EqualEqual     => 20,
-            Self::NotEqual       => 20,
+            Self::BangEqual       => 20,
             Self::LeftChevron    => 20,
             Self::RightChevron   => 20,
             Self::LessOrEqual    => 20,
@@ -102,7 +102,7 @@ impl BinaryOperator {
             Self::RightShift     => Left,
 
             Self::EqualEqual     => Left,
-            Self::NotEqual       => Left,
+            Self::BangEqual       => Left,
             Self::LeftChevron    => Left,
             Self::RightChevron   => Left,
             Self::LessOrEqual    => Left,
@@ -127,7 +127,7 @@ impl PreUnaryOperator {
     #[rustfmt::skip]
     pub fn precedence(&self) -> u8 {
         match self {
-            Self::Not        => 100,
+            Self::Bang        => 100,
             Self::PlusPlus   => 100,
             Self::MinusMinus => 100,
             Self::Plus       => 70,
@@ -152,7 +152,7 @@ impl TryFrom<&TokenDiscr> for BinaryOperator {
             TokenDiscr::RightShift => Self::RightShift,
 
             TokenDiscr::EqualEqual => Self::EqualEqual,
-            TokenDiscr::NotEqual => Self::NotEqual,
+            TokenDiscr::BangEqual => Self::BangEqual,
             TokenDiscr::LeftChevron => Self::LeftChevron,
             TokenDiscr::RightChevron => Self::RightChevron,
             TokenDiscr::LessOrEqual => Self::LessOrEqual,
@@ -187,7 +187,7 @@ impl TryFrom<&TokenDiscr> for PreUnaryOperator {
     type Error = ();
     fn try_from(value: &TokenDiscr) -> Result<Self, Self::Error> {
         Ok(match value {
-            TokenDiscr::Not => Self::Not,
+            TokenDiscr::Bang => Self::Bang,
             TokenDiscr::PlusPlus => Self::PlusPlus,
             TokenDiscr::MinusMinus => Self::MinusMinus,
             TokenDiscr::Plus => Self::Plus,
