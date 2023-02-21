@@ -8,17 +8,10 @@ pub struct OperatorPriority {
 }
 
 impl OperatorPriority {
-    pub fn of_binary_operator(operator: BinaryOperator) -> Self {
+    pub fn new(precedence: u8, associativity: Associativity) -> Self {
         Self {
-            precedence: operator.precedence(),
-            associativity: operator.associativity(),
-        }
-    }
-
-    pub fn of_pre_unary_operator(operator: PreUnaryOperator) -> Self {
-        Self {
-            precedence: operator.precedence(),
-            associativity: Associativity::Left,
+            precedence,
+            associativity,
         }
     }
 

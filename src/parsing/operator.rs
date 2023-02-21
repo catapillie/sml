@@ -50,121 +50,90 @@ pub enum PostUnaryOperator {
 }
 
 impl BinaryOperator {
+    #[rustfmt::skip]
     pub fn priority(&self) -> OperatorPriority {
-        OperatorPriority::of_binary_operator(*self)
-    }
+        use BinaryOperator::*;
+        
+        let (precedence, associativity) = match self {
+            Ampersand      => (50, Associativity::Left),
+            Pipe           => (50, Associativity::Left),
+            Asterisk       => (50, Associativity::Left),
+            Slash          => (50, Associativity::Left),
 
-    #[rustfmt::skip]
-    pub fn precedence(&self) -> u8 {
-        match self {
-            Self::Ampersand      => 50,
-            Self::Pipe           => 50,
-            Self::Asterisk       => 50,
-            Self::Slash          => 50,
+            Plus           => (40, Associativity::Left),
+            Minus          => (40, Associativity::Left),
 
-            Self::Plus           => 40,
-            Self::Minus          => 40,
+            LeftShift      => (30, Associativity::Left),
+            RightShift     => (30, Associativity::Left),
 
-            Self::LeftShift      => 30,
-            Self::RightShift     => 30,
-
-            Self::EqualEqual     => 20,
-            Self::BangEqual       => 20,
-            Self::LeftChevron    => 20,
-            Self::RightChevron   => 20,
-            Self::LessOrEqual    => 20,
-            Self::GreaterOrEqual => 20,
+            EqualEqual     => (20, Associativity::Left),
+            BangEqual      => (20, Associativity::Left),
+            LeftChevron    => (20, Associativity::Left),
+            RightChevron   => (20, Associativity::Left),
+            LessOrEqual    => (20, Associativity::Left),
+            GreaterOrEqual => (20, Associativity::Left),
 
 
-            Self::Equal          => 10,
-            Self::PlusEqual      => 10,
-            Self::MinusEqual     => 10,
-            Self::AsteriskEqual  => 10,
-            Self::SlashEqual     => 10,
-            Self::AmpersandEqual => 10,
-            Self::PipeEqual      => 10,
-        }
-    }
+            Equal          => (10, Associativity::Right),
+            PlusEqual      => (10, Associativity::Right),
+            MinusEqual     => (10, Associativity::Right),
+            AsteriskEqual  => (10, Associativity::Right),
+            SlashEqual     => (10, Associativity::Right),
+            AmpersandEqual => (10, Associativity::Right),
+            PipeEqual      => (10, Associativity::Right),
+        };
 
-    #[rustfmt::skip]
-    pub fn associativity(&self) -> Associativity {
-        use Associativity::*;
-        match self {
-            Self::Ampersand      => Left,
-            Self::Pipe           => Left,
-            Self::Asterisk       => Left,
-            Self::Slash          => Left,
-
-            Self::Plus           => Left,
-            Self::Minus          => Left,
-
-            Self::LeftShift      => Left,
-            Self::RightShift     => Left,
-
-            Self::EqualEqual     => Left,
-            Self::BangEqual       => Left,
-            Self::LeftChevron    => Left,
-            Self::RightChevron   => Left,
-            Self::LessOrEqual    => Left,
-            Self::GreaterOrEqual => Left,
-
-            Self::Equal          => Right,
-            Self::PlusEqual      => Right,
-            Self::MinusEqual     => Right,
-            Self::AsteriskEqual  => Right,
-            Self::SlashEqual     => Right,
-            Self::AmpersandEqual => Right,
-            Self::PipeEqual      => Right,
-        }
+        OperatorPriority::new(precedence, associativity)
     }
 }
 
 impl PreUnaryOperator {
-    pub fn priority(&self) -> OperatorPriority {
-        OperatorPriority::of_pre_unary_operator(*self)
-    }
-
     #[rustfmt::skip]
-    pub fn precedence(&self) -> u8 {
-        match self {
-            Self::Bang        => 100,
-            Self::PlusPlus   => 100,
-            Self::MinusMinus => 100,
-            Self::Plus       => 70,
-            Self::Minus      => 70,
-        }
+    pub fn priority(&self) -> OperatorPriority {
+        OperatorPriority::new(
+            match self {
+                Self::Bang       => 100,
+                Self::PlusPlus   => 100,
+                Self::MinusMinus => 100,
+                Self::Plus       => 70,
+                Self::Minus      => 70,
+            },
+            Associativity::Left
+        )
     }
 }
 
 impl TryFrom<&TokenDiscr> for BinaryOperator {
     type Error = ();
+
+    #[rustfmt::skip]
     fn try_from(value: &TokenDiscr) -> Result<Self, Self::Error> {
         Ok(match value {
-            TokenDiscr::Ampersand => Self::Ampersand,
-            TokenDiscr::Pipe => Self::Pipe,
-            TokenDiscr::Asterisk => Self::Asterisk,
-            TokenDiscr::Slash => Self::Slash,
+            TokenDiscr::Ampersand      => Self::Ampersand,
+            TokenDiscr::Pipe           => Self::Pipe,
+            TokenDiscr::Asterisk       => Self::Asterisk,
+            TokenDiscr::Slash          => Self::Slash,
 
-            TokenDiscr::Plus => Self::Plus,
-            TokenDiscr::Minus => Self::Minus,
+            TokenDiscr::Plus           => Self::Plus,
+            TokenDiscr::Minus          => Self::Minus,
 
-            TokenDiscr::LeftShift => Self::LeftShift,
-            TokenDiscr::RightShift => Self::RightShift,
+            TokenDiscr::LeftShift      => Self::LeftShift,
+            TokenDiscr::RightShift     => Self::RightShift,
 
-            TokenDiscr::EqualEqual => Self::EqualEqual,
-            TokenDiscr::BangEqual => Self::BangEqual,
-            TokenDiscr::LeftChevron => Self::LeftChevron,
-            TokenDiscr::RightChevron => Self::RightChevron,
-            TokenDiscr::LessOrEqual => Self::LessOrEqual,
+            TokenDiscr::EqualEqual     => Self::EqualEqual,
+            TokenDiscr::BangEqual      => Self::BangEqual,
+            TokenDiscr::LeftChevron    => Self::LeftChevron,
+            TokenDiscr::RightChevron   => Self::RightChevron,
+            TokenDiscr::LessOrEqual    => Self::LessOrEqual,
             TokenDiscr::GreaterOrEqual => Self::GreaterOrEqual,
 
-            TokenDiscr::Equal => Self::Equal,
-            TokenDiscr::PlusEqual => Self::PlusEqual,
-            TokenDiscr::MinusEqual => Self::MinusEqual,
-            TokenDiscr::AsteriskEqual => Self::AsteriskEqual,
-            TokenDiscr::SlashEqual => Self::SlashEqual,
+            TokenDiscr::Equal          => Self::Equal,
+            TokenDiscr::PlusEqual      => Self::PlusEqual,
+            TokenDiscr::MinusEqual     => Self::MinusEqual,
+            TokenDiscr::AsteriskEqual  => Self::AsteriskEqual,
+            TokenDiscr::SlashEqual     => Self::SlashEqual,
             TokenDiscr::AmpersandEqual => Self::AmpersandEqual,
-            TokenDiscr::PipeEqual => Self::PipeEqual,
+            TokenDiscr::PipeEqual      => Self::PipeEqual,
 
             _ => return Err(()),
         })
@@ -172,12 +141,14 @@ impl TryFrom<&TokenDiscr> for BinaryOperator {
 }
 impl<'a> TryFrom<&TokenKind<'a>> for BinaryOperator {
     type Error = ();
+
     fn try_from(value: &TokenKind<'a>) -> Result<Self, Self::Error> {
         (&value.discr()).try_into()
     }
 }
 impl<'a> TryFrom<&Token<'a>> for BinaryOperator {
     type Error = ();
+
     fn try_from(value: &Token<'a>) -> Result<Self, Self::Error> {
         (&value.kind().discr()).try_into()
     }
@@ -185,13 +156,15 @@ impl<'a> TryFrom<&Token<'a>> for BinaryOperator {
 
 impl TryFrom<&TokenDiscr> for PreUnaryOperator {
     type Error = ();
+
+    #[rustfmt::skip]
     fn try_from(value: &TokenDiscr) -> Result<Self, Self::Error> {
         Ok(match value {
-            TokenDiscr::Bang => Self::Bang,
-            TokenDiscr::PlusPlus => Self::PlusPlus,
+            TokenDiscr::Bang       => Self::Bang,
+            TokenDiscr::PlusPlus   => Self::PlusPlus,
             TokenDiscr::MinusMinus => Self::MinusMinus,
-            TokenDiscr::Plus => Self::Plus,
-            TokenDiscr::Minus => Self::Minus,
+            TokenDiscr::Plus       => Self::Plus,
+            TokenDiscr::Minus      => Self::Minus,
 
             _ => return Err(()),
         })
@@ -199,12 +172,14 @@ impl TryFrom<&TokenDiscr> for PreUnaryOperator {
 }
 impl<'a> TryFrom<&TokenKind<'a>> for PreUnaryOperator {
     type Error = ();
+
     fn try_from(value: &TokenKind<'a>) -> Result<Self, Self::Error> {
         (&value.discr()).try_into()
     }
 }
 impl<'a> TryFrom<&Token<'a>> for PreUnaryOperator {
     type Error = ();
+
     fn try_from(value: &Token<'a>) -> Result<Self, Self::Error> {
         (&value.kind().discr()).try_into()
     }
@@ -212,9 +187,11 @@ impl<'a> TryFrom<&Token<'a>> for PreUnaryOperator {
 
 impl TryFrom<&TokenDiscr> for PostUnaryOperator {
     type Error = ();
+
+    #[rustfmt::skip]
     fn try_from(value: &TokenDiscr) -> Result<Self, Self::Error> {
         Ok(match value {
-            TokenDiscr::PlusPlus => Self::PlusPlus,
+            TokenDiscr::PlusPlus   => Self::PlusPlus,
             TokenDiscr::MinusMinus => Self::MinusMinus,
 
             _ => return Err(()),
@@ -223,12 +200,14 @@ impl TryFrom<&TokenDiscr> for PostUnaryOperator {
 }
 impl<'a> TryFrom<&TokenKind<'a>> for PostUnaryOperator {
     type Error = ();
+
     fn try_from(value: &TokenKind<'a>) -> Result<Self, Self::Error> {
         (&value.discr()).try_into()
     }
 }
 impl<'a> TryFrom<&Token<'a>> for PostUnaryOperator {
     type Error = ();
+
     fn try_from(value: &Token<'a>) -> Result<Self, Self::Error> {
         (&value.kind().discr()).try_into()
     }
