@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, ops::Not};
 
 use crate::{
     diagnostics::{DiagnosticList, LexerDiagnosticKind, ParserDiagnosticKind},
@@ -74,14 +74,19 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_statement(&mut self) -> Statement<'a> {
-        match self.lookahead.discr() {
+        while let TokenDiscr::Semicolon = self.lookahead.discr() {
+            self.consume();
+        }
+
+        let statement = match self.lookahead.discr() {
             TokenDiscr::LeftBrace => {
                 let left_brace = self.consume();
 
                 let mut statements = Vec::new();
 
                 #[rustfmt::skip]
-                while !matches!(self.lookahead.discr(), TokenDiscr::RightBrace | TokenDiscr::Eof) {
+                while !matches!(self.lookahead.discr(), TokenDiscr::RightBrace | TokenDiscr::Eof)
+                {
                     statements.push(self.parse_statement());
                 };
 
@@ -145,18 +150,25 @@ impl<'a> Parser<'a> {
             _ => {
                 if let Some(expression) = self.try_parse_expression() {
                     let semicolon = self.expect(TokenDiscr::Semicolon);
-                    return Statement::Expression {
+                    Statement::Expression {
                         expression,
                         semicolon,
-                    };
-                }
+                    }
+                } else {
+                    let tok = self.consume();
+                    self.diagnostics
+                        .push_kind(ParserDiagnosticKind::ExpectedStatement, tok.span());
 
-                let tok = self.consume();
-                self.diagnostics
-                    .push_kind(ParserDiagnosticKind::ExpectedStatement, tok.span());
-                Statement::None
+                    Statement::None
+                }
             }
+        };
+
+        while let TokenDiscr::Semicolon = self.lookahead.discr() {
+            self.consume();
         }
+
+        statement
     }
 
     fn try_parse_expression(&mut self) -> Option<Expression<'a>> {
