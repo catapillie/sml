@@ -1,6 +1,6 @@
-use crate::lexing::token::Token;
+use crate::lexing::Token;
 
-use super::expression::Expression;
+use super::Expression;
 
 #[derive(Debug)]
 pub enum Statement<'a> {
@@ -33,5 +33,5 @@ pub enum Statement<'a> {
     Expression {
         expression: Expression<'a>,
         semicolon: Token<'a>,
-    }
+    },
 }

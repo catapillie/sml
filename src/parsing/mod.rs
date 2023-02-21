@@ -1,7 +1,18 @@
-pub(crate) mod associativity;
+mod associativity;
 mod expression;
-mod statement;
-pub(crate) mod operator;
-pub mod parser;
+mod operator;
+mod parser;
 mod parser_ast;
-pub(crate) mod priority;
+mod priority;
+mod statement;
+
+pub use parser::Parser;
+
+use {
+    associativity::Associativity,
+    expression::Expression,
+    operator::{BinaryOperator, PostUnaryOperator, PreUnaryOperator},
+    parser_ast::ParserAST,
+    priority::Priority,
+    statement::Statement,
+};

@@ -1,5 +1,5 @@
 use super::{
-    super::severity::Severity::{self, Error},
+    Severity::{self, Error},
     DiagnosticKind,
 };
 
@@ -36,22 +36,24 @@ impl DiagnosticKind for LexerDiagnosticKind {
 
     #[rustfmt::skip]
     fn message(&self, source: &str) -> String {
+        use LexerDiagnosticKind::*;
+        
         match self {
-            LexerDiagnosticKind::IllegalCharacter(c) => format!("Illegal character '{c}'"),
-            LexerDiagnosticKind::InvalidIntegerTrailingWord => format!("The integer literal '{source}' has trailing alphabetic characters and is thus invalid"),
-            LexerDiagnosticKind::InvalidIntegerTooLarge => format!("The integer literal '{source}' is too large and cannot fit within 8 bytes"),
-            LexerDiagnosticKind::InvalidFloatTrailingWord => format!("The floating point number literal '{source}' has trailing alphabetic characters and is thus invalid"),
-            LexerDiagnosticKind::InvalidFloat => format!("Failed to parse the floating point number literal '{source}'"),
-            LexerDiagnosticKind::UnclosedString => "Unclosed string, missing a '\"' at the end.".to_string(),
-            LexerDiagnosticKind::InvalidEscapeCharacter(c) => format!("The escape character '{c}' is invalid"),
-            LexerDiagnosticKind::ExpectAsciiCharacterFirst(c) => format!("Expected a valid ASCII character code, but the first character '{c}' isn't a hexadecimal digit"),
-            LexerDiagnosticKind::ExpectAsciiCharacterSecond(c) => format!("Expected a valid ASCII character code, but the second character '{c}' isn't a hexadecimal digit"),
-            LexerDiagnosticKind::InvalidAsciiCharacterCode(first, second) => format!("The ASCII character code '{first}{second}' is invalid"),
-            LexerDiagnosticKind::InvalidUnicodeSequenceMissingLeftBrace => "Unicode escape sequence must start with an opening brace".to_string(),
-            LexerDiagnosticKind::InvalidUnicodeCharacterCode => format!("The Unicode sequence '{source}' is invalid"),
-            LexerDiagnosticKind::InvalidUnicodeTooLong => "The Unicode escape sequence is too long, and is thus invalid".to_string(),
-            LexerDiagnosticKind::InvalidUnicodeDigit(c) => format!("The Unicode sequence must be a hexadecimal number, but '{c}' isn't a hexadecimal digit"),
-            LexerDiagnosticKind::UnclosedBlockComment => "Unclosed block comment, missing a \"*/\" at the end.".to_string(),
+            IllegalCharacter(c) => format!("Illegal character '{c}'"),
+            InvalidIntegerTrailingWord => format!("The integer literal '{source}' has trailing alphabetic characters and is thus invalid"),
+            InvalidIntegerTooLarge => format!("The integer literal '{source}' is too large and cannot fit within 8 bytes"),
+            InvalidFloatTrailingWord => format!("The floating point number literal '{source}' has trailing alphabetic characters and is thus invalid"),
+            InvalidFloat => format!("Failed to parse the floating point number literal '{source}'"),
+            UnclosedString => "Unclosed string, missing a '\"' at the end.".to_string(),
+            InvalidEscapeCharacter(c) => format!("The escape character '{c}' is invalid"),
+            ExpectAsciiCharacterFirst(c) => format!("Expected a valid ASCII character code, but the first character '{c}' isn't a hexadecimal digit"),
+            ExpectAsciiCharacterSecond(c) => format!("Expected a valid ASCII character code, but the second character '{c}' isn't a hexadecimal digit"),
+            InvalidAsciiCharacterCode(first, second) => format!("The ASCII character code '{first}{second}' is invalid"),
+            InvalidUnicodeSequenceMissingLeftBrace => "Unicode escape sequence must start with an opening brace".to_string(),
+            InvalidUnicodeCharacterCode => format!("The Unicode sequence '{source}' is invalid"),
+            InvalidUnicodeTooLong => "The Unicode escape sequence is too long, and is thus invalid".to_string(),
+            InvalidUnicodeDigit(c) => format!("The Unicode sequence must be a hexadecimal number, but '{c}' isn't a hexadecimal digit"),
+            UnclosedBlockComment => "Unclosed block comment, missing a \"*/\" at the end.".to_string(),
         }
     }
 }

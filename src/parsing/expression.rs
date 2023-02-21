@@ -1,4 +1,4 @@
-use crate::lexing::token::Token;
+use crate::lexing::Token;
 
 #[derive(Debug)]
 pub enum Expression<'a> {

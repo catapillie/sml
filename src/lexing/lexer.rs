@@ -1,6 +1,6 @@
 use crate::diagnostics::{DiagnosticList, LexerDiagnosticKind};
 
-use super::{cursor::Cursor, token::Token, token_kind::TokenKind, token_span::TokenSpan};
+use super::{Cursor, Token, TokenKind, TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,

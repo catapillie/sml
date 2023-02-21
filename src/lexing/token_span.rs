@@ -1,4 +1,4 @@
-use super::location::Location;
+use super::Location;
 
 #[derive(Debug, Copy, Clone)]
 pub struct TokenSpan {

@@ -1,9 +1,9 @@
 use crate::{
-    lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind},
-    parsing::associativity::Associativity,
+    lexing::{Token, TokenDiscr, TokenKind},
+    parsing::Associativity,
 };
 
-use super::priority::Priority;
+use super::Priority;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BinaryOperator {

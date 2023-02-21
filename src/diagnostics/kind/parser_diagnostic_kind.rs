@@ -1,8 +1,8 @@
-use crate::lexing::token_discr::TokenDiscr;
+use crate::lexing::TokenDiscr;
 
 use super::{
-    super::severity::Severity::{self, Error},
     DiagnosticKind,
+    Severity::{self, Error},
 };
 
 #[derive(Debug, enum_assoc::Assoc)]
@@ -27,11 +27,13 @@ impl DiagnosticKind for ParserDiagnosticKind {
 
     #[rustfmt::skip]
     fn message(&self, source: &str) -> String {
+        use ParserDiagnosticKind::*;
+        
         match self {
-            ParserDiagnosticKind::UnexpectedToken { expected, found } => format!("Expected {expected:?} token, but found {found:?} token"),
-            ParserDiagnosticKind::UnexpectedEof { expected } => format!("Expected {expected:?} token, but unexpectedly reached end-of-file"),
-            ParserDiagnosticKind::ExpectedExpression => "Expected an expression".to_string(),
-            ParserDiagnosticKind::ExpectedStatement => "Expected a statement".to_string(),
+            UnexpectedToken { expected, found } => format!("Expected {expected:?} token, but found {found:?} token"),
+            UnexpectedEof { expected } => format!("Expected {expected:?} token, but unexpectedly reached end-of-file"),
+            ExpectedExpression => "Expected an expression".to_string(),
+            ExpectedStatement => "Expected a statement".to_string(),
         }
     }
 }

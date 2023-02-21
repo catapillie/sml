@@ -4,11 +4,8 @@ mod kind;
 mod severity;
 
 pub use {
-    diagnostic::{Diagnostic},
+    diagnostic::Diagnostic,
     diagnostic_list::DiagnosticList,
+    kind::{DiagnosticKind, LexerDiagnosticKind, ParserDiagnosticKind},
     severity::Severity,
-    kind::{
-        LexerDiagnosticKind,
-        ParserDiagnosticKind,
-    }
 };

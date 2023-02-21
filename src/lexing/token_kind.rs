@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use super::token_discr::TokenDiscr;
+use super::TokenDiscr;
 
 #[derive(Debug, PartialEq)]
 #[derive(enum_assoc::Assoc)]

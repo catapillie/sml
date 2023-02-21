@@ -1,18 +1,11 @@
-use std::{mem, thread::LocalKey};
+use std::mem;
 
 use crate::{
-    diagnostics::{LexerDiagnosticKind, ParserDiagnosticKind},
-    lexing::{token::Token, token_discr::TokenDiscr, token_kind::TokenKind, token_span::TokenSpan},
-    DiagnosticList, Lexer,
+    diagnostics::{DiagnosticList, LexerDiagnosticKind, ParserDiagnosticKind},
+    lexing::{Lexer, Token, TokenDiscr, TokenKind, TokenSpan},
 };
 
-use super::{
-    expression::Expression,
-    operator::{BinaryOperator, PreUnaryOperator},
-    parser_ast::ParserAST,
-    priority::Priority,
-    statement::Statement,
-};
+use super::{BinaryOperator, Expression, PreUnaryOperator, Priority, Statement};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -226,7 +219,11 @@ impl<'a> Parser<'a> {
     // NOTE: beginning tokens of expressions MUST be added in `is_expression_start`!
     fn parse_primary_expression(&mut self) -> Expression<'a> {
         match self.lookahead.discr() {
-            TokenDiscr::Int | TokenDiscr::Float | TokenDiscr::String | TokenDiscr::Character | TokenDiscr::Identifier => Expression::Literal {
+            TokenDiscr::Int
+            | TokenDiscr::Float
+            | TokenDiscr::String
+            | TokenDiscr::Character
+            | TokenDiscr::Identifier => Expression::Literal {
                 token: self.consume(),
             },
             TokenDiscr::LeftParen => {

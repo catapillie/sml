@@ -1,4 +1,4 @@
-use super::{token_discr::TokenDiscr, token_kind::TokenKind, token_span::TokenSpan};
+use super::{TokenDiscr, TokenKind, TokenSpan};
 
 #[derive(Debug)]
 pub struct Token<'a> {

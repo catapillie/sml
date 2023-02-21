@@ -1,6 +1,6 @@
 use std::str::Chars;
 
-use super::location::Location;
+use super::Location;
 
 /// A struct that keeps track of the position of the cursor in the sourcce buffer.
 ///

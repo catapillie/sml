@@ -1,6 +1,6 @@
-use crate::lexing::token_span::TokenSpan;
+use crate::lexing::TokenSpan;
 
-use super::kind::DiagnosticKind;
+use super::DiagnosticKind;
 
 /// Represents a compiler diagnostic.
 #[derive(Debug)]

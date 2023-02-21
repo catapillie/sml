@@ -1,9 +1,6 @@
 use std::cmp::Ordering;
 
-use super::{
-    associativity::Associativity,
-    operator::{BinaryOperator, PreUnaryOperator},
-};
+use super::{Associativity, BinaryOperator, PreUnaryOperator};
 
 pub struct Priority {
     precedence: u8,
