@@ -3,7 +3,7 @@ use crate::{
     parsing::Associativity,
 };
 
-use super::Priority;
+use super::OperatorPriority;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BinaryOperator {
@@ -50,8 +50,8 @@ pub enum PostUnaryOperator {
 }
 
 impl BinaryOperator {
-    pub fn priority(&self) -> Priority {
-        Priority::of_binary_operator(*self)
+    pub fn priority(&self) -> OperatorPriority {
+        OperatorPriority::of_binary_operator(*self)
     }
 
     #[rustfmt::skip]
@@ -120,8 +120,8 @@ impl BinaryOperator {
 }
 
 impl PreUnaryOperator {
-    pub fn priority(&self) -> Priority {
-        Priority::of_pre_unary_operator(*self)
+    pub fn priority(&self) -> OperatorPriority {
+        OperatorPriority::of_pre_unary_operator(*self)
     }
 
     #[rustfmt::skip]

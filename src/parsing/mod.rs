@@ -13,6 +13,6 @@ use {
     expression::Expression,
     operator::{BinaryOperator, PostUnaryOperator, PreUnaryOperator},
     parser_ast::ParserAST,
-    priority::Priority,
+    priority::OperatorPriority,
     statement::Statement,
 };

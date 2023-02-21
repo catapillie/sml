@@ -2,12 +2,12 @@ use std::cmp::Ordering;
 
 use super::{Associativity, BinaryOperator, PreUnaryOperator};
 
-pub struct Priority {
+pub struct OperatorPriority {
     precedence: u8,
     associativity: Associativity,
 }
 
-impl Priority {
+impl OperatorPriority {
     pub fn of_binary_operator(operator: BinaryOperator) -> Self {
         Self {
             precedence: operator.precedence(),
@@ -33,7 +33,7 @@ impl Priority {
     }
 }
 
-impl Default for Priority {
+impl Default for OperatorPriority {
     fn default() -> Self {
         Self {
             precedence: 0,

@@ -5,7 +5,7 @@ use crate::{
     lexing::{Lexer, Token, TokenDiscr, TokenKind, TokenSpan},
 };
 
-use super::{BinaryOperator, Expression, PreUnaryOperator, Priority, Statement};
+use super::{BinaryOperator, Expression, OperatorPriority, PreUnaryOperator, Statement};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -180,10 +180,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expression(&mut self) -> Expression<'a> {
-        self.parse_operation_expression(Priority::default())
+        self.parse_operation_expression(OperatorPriority::default())
     }
 
-    fn parse_operation_expression(&mut self, priority: Priority) -> Expression<'a> {
+    fn parse_operation_expression(&mut self, priority: OperatorPriority) -> Expression<'a> {
         let mut left = if let Ok(pre_unary_operator) = PreUnaryOperator::try_from(&self.lookahead) {
             let priority_ahead = pre_unary_operator.priority();
             let operator = self.consume();
