@@ -1,6 +1,6 @@
 use super::Location;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub struct TokenSpan {
     start: Location,
     end: Location,

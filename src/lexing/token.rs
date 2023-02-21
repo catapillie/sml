@@ -1,6 +1,6 @@
 use super::{TokenDiscr, TokenKind, TokenSpan};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token<'a> {
     kind: TokenKind<'a>,
     span: TokenSpan,

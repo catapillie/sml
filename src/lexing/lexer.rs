@@ -605,104 +605,157 @@ impl<'a> Lexer<'a> {
 mod tests {
     use super::*;
 
-    macro_rules! test_tokens {
-        ($name:ident { $($raw:literal => $kind:expr)* }) => {
-            #[test]
-            fn $name() {
-                let mut lexer = Lexer::new(concat!($(" ", $raw),*));
+    macro_rules! join {
+        ($sep:literal; $first:literal $($other:literal)*) => {
+            concat!($first, $($sep, $other),*)
+        }
+    }
 
-                let tokens = lexer.lex_all();
-
-                let expected_kinds = [$($kind),*];
-
-                for (token, expected) in tokens.iter().zip(expected_kinds.iter()) {
-                    assert_eq!(token.kind(), expected);
-                }
-
-                // check if the length is different, ignoring any trailing EOFs in the output tokens.
-                if tokens.iter().skip(expected_kinds.len()).any(|token| token.kind() != &TokenKind::Eof) {
-                    panic!("expected {} tokens (+ EOF), but got {}: {tokens:?}", expected_kinds.len(), tokens.len());
-                }
+    macro_rules! test_lexer {
+        ($(
+            $name:ident {
+                $(
+                    $raw:literal => $($kind:expr),*$(,)?
+                );*$(;)?
             }
+        )*) => {
+            $(
+                #[test]
+                fn $name() {
+                    #[allow(unused_imports)]
+                    use crate::lexing::{Lexer, TokenSpan, Location, TokenKind::*};
+
+                    let mut lexer = Lexer::new(join!(" "; $($raw)*));
+
+                    let expected_kinds = [$(&[$($kind),*]),*];
+                    let raws = [$($raw),*];
+
+                    let mut pos = 0;
+
+                    for (kinds, raw) in std::iter::zip(expected_kinds.into_iter(), raws.into_iter()) {
+                        if kinds.len() == 1 {
+                            let start = pos;
+                            let end = start + raw.len();
+
+                            let token = lexer.lex();
+
+                            let kind: &TokenKind = &kinds[0];
+
+                            assert_eq!(kind, token.kind());
+                            assert_eq!(
+                                TokenSpan::new(
+                                    // we don't care about the line and the column because they are not checked in the `PartialEq` implementation of `Location`
+                                    Location::new(start, 0, 0),
+                                    Location::new(end, 0, 0),
+                                ),
+                                token.span()
+                            );
+                        } else {
+                            for kind in kinds {
+                                assert_eq!(kind, lexer.lex().kind());
+                            }
+                        }
+
+                        pos += raw.len() + 1;
+                    }
+
+                    let remaining = lexer.lex_all();
+
+                    let TokenKind::Eof = remaining[0].kind() else {
+                        panic!("Remaining tokens: {:#?}.", remaining);
+                    };
+                }
+            )*
         };
     }
 
-    test_tokens!(test_keyword_fn { "fn" => TokenKind::KeywordFn });
-    test_tokens!(test_keyword_if { "if" => TokenKind::KeywordIf });
-    test_tokens!(test_keyword_unless { "unless" => TokenKind::KeywordUnless });
-    test_tokens!(test_keyword_while { "while" => TokenKind::KeywordWhile });
-    test_tokens!(test_keyword_until { "until" => TokenKind::KeywordUntil });
-    test_tokens!(test_keyword_else { "else" => TokenKind::KeywordElse });
-    test_tokens!(test_keyword_forever { "forever" => TokenKind::KeywordForever });
-    test_tokens!(test_keyword_repeat { "repeat" => TokenKind::KeywordRepeat });
-    test_tokens!(test_identifier_abc { "abc" => TokenKind::Identifier("abc") });
-    test_tokens!(test_identifier_abclonger { "abclonger" => TokenKind::Identifier("abclonger") });
-    test_tokens!(test_identifier_main { "main" => TokenKind::Identifier("main") });
-    test_tokens!(test_integer_0 { "0" => TokenKind::Int(0) });
-    test_tokens!(test_integer_65536 { "65536" => TokenKind::Int(65536) });
-    test_tokens!(test_integer_1 { "1" => TokenKind::Int(1) });
-    test_tokens!(test_integer_2048_malformed { "2048malformed" => TokenKind::MalformedInt });
-    test_tokens!(test_float_2_5 { "2.5" => TokenKind::Float(2.5) });
-    test_tokens!(test_float_0_2 { ".2" => TokenKind::Float(0.2) });
-    test_tokens!(test_float_2_0 { "2." => TokenKind::MalformedFloat });
-    test_tokens!(test_float_20_48_malformed { "20.48malformed" => TokenKind::MalformedFloat });
-    test_tokens!(test_string_empty { "\"\"" => TokenKind::String("".into()) });
-    test_tokens!(test_string_this_is_a_string_literal { "\"this is a string literal\"" => TokenKind::String("this is a string literal".into()) });
-    test_tokens!(test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => TokenKind::String("hello\nhi\twhat\ridk\\yes\0or\"no".into()) });
-    test_tokens!(test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => TokenKind::String("\x5E\x6F\x61\u{102}\u{12345}\u{103456}".into()) });
-    test_tokens!(test_string_malformed { "\"malformed" => TokenKind::MalformedString });
-    test_tokens!(test_character_a { "'a'" => TokenKind::Character('a') });
-    test_tokens!(test_character_b { "'b'" => TokenKind::Character('b') });
-    test_tokens!(test_character_ascii_escape { "'\\x5E'" => TokenKind::Character('\x5E') });
-    test_tokens!(test_character_unicode_escape { "'\\u{102}'" => TokenKind::Character('\u{102}') });
-    test_tokens!(test_character_malformed { "'m" => TokenKind::MalformedCharacter });
-    test_tokens!(test_left_paren { "(" => TokenKind::LeftParen });
-    test_tokens!(test_right_paren { ")" => TokenKind::RightParen });
-    test_tokens!(test_left_bracket { "[" => TokenKind::LeftBracket });
-    test_tokens!(test_right_bracket { "]" => TokenKind::RightBracket });
-    test_tokens!(test_left_brace { "{" => TokenKind::LeftBrace });
-    test_tokens!(test_right_brace { "}" => TokenKind::RightBrace });
-    test_tokens!(test_left_chevron { "<" => TokenKind::LeftChevron });
-    test_tokens!(test_right_chevron { ">" => TokenKind::RightChevron });
-    test_tokens!(test_dot { "." => TokenKind::Dot });
-    test_tokens!(test_comma { "," => TokenKind::Comma });
-    test_tokens!(test_colon { ":" => TokenKind::Colon });
-    test_tokens!(test_semicolon { ";" => TokenKind::Semicolon });
-    test_tokens!(test_plus { "+" => TokenKind::Plus });
-    test_tokens!(test_minus { "-" => TokenKind::Minus });
-    test_tokens!(test_asterisk { "*" => TokenKind::Asterisk });
-    test_tokens!(test_slash { "/" => TokenKind::Slash });
-    test_tokens!(test_ampersand { "&" => TokenKind::Ampersand });
-    test_tokens!(test_pipe { "|" => TokenKind::Pipe });
-    test_tokens!(test_equal { "=" => TokenKind::Equal });
-    test_tokens!(test_plus_equal { "+=" => TokenKind::PlusEqual });
-    test_tokens!(test_minus_equal { "-=" => TokenKind::MinusEqual });
-    test_tokens!(test_asterisk_equal { "*=" => TokenKind::AsteriskEqual });
-    test_tokens!(test_slash_equal { "/=" => TokenKind::SlashEqual });
-    test_tokens!(test_ampersand_equal { "&=" => TokenKind::AmpersandEqual });
-    test_tokens!(test_pipe_equal { "|=" => TokenKind::PipeEqual });
-    test_tokens!(test_equal_equal { "==" => TokenKind::EqualEqual });
-    test_tokens!(test_not_equal { "!=" => TokenKind::BangEqual });
-    test_tokens!(test_less_or_equal { "<=" => TokenKind::LessOrEqual });
-    test_tokens!(test_greater_or_equal { ">=" => TokenKind::GreaterOrEqual });
-    test_tokens!(test_left_shift { "<<" => TokenKind::LeftShift });
-    test_tokens!(test_right_shift { ">>" => TokenKind::RightShift });
-    test_tokens!(test_not { "!" => TokenKind::Bang });
-    test_tokens!(test_plus_plus { "++" => TokenKind::PlusPlus });
-    test_tokens!(test_minus_minus { "--" => TokenKind::MinusMinus });
-    test_tokens!(test_line_comment { "// hello how are you ?\n" => TokenKind::Eof });
-    test_tokens!(test_line_comment_eof { "// hello how are you ?" => TokenKind::Eof });
-    test_tokens!(test_block_comment { "/* hello how are you ? */" => TokenKind::Eof });
-    test_tokens!(test_block_comment_lf { "/* hello how\nare you ? */" => TokenKind::Eof });
-    test_tokens!(test_block_comment_malformed { "/* hello how\nare you ?* / *" => TokenKind::Eof });
-    test_tokens!(test_eof { "" => TokenKind::Eof });
+    test_lexer! {
+        test_keyword_fn { "fn" => KeywordFn }
+        test_keyword_if { "if" => KeywordIf }
+        test_keyword_unless { "unless" => KeywordUnless }
+        test_keyword_while { "while" => KeywordWhile }
+        test_keyword_until { "until" => KeywordUntil }
+        test_keyword_else { "else" => KeywordElse }
+        test_keyword_forever { "forever" => KeywordForever }
+        test_keyword_repeat { "repeat" => KeywordRepeat }
+        test_identifier_abc { "abc" => Identifier("abc") }
+        test_identifier_abclonger { "abclonger" => Identifier("abclonger") }
+        test_identifier_main { "main" => Identifier("main") }
+        test_integer_0 { "0" => Int(0) }
+        test_integer_65536 { "65536" => Int(65536) }
+        test_integer_1 { "1" => Int(1) }
+        test_integer_2048_malformed { "2048malformed" => MalformedInt }
+        test_float_2_5 { "2.5" => Float(2.5) }
+        test_float_0_2 { ".2" => Float(0.2) }
+        test_float_2_0 { "2." => MalformedFloat }
+        test_float_20_48_malformed { "20.48malformed" => MalformedFloat }
+        test_string_empty { "\"\"" => String("".into()) }
+        test_string_this_is_a_string_literal { "\"this is a string literal\"" => String("this is a string literal".into()) }
+        test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => String("hello\nhi\twhat\ridk\\yes\0or\"no".into()) }
+        test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => String("\x5E\x6F\x61\u{102}\u{12345}\u{103456}".into()) }
+        test_string_malformed { "\"malformed" => MalformedString }
+        test_character_a { "'a'" => Character('a') }
+        test_character_b { "'b'" => Character('b') }
+        test_character_ascii_escape { "'\\x5E'" => Character('\x5E') }
+        test_character_unicode_escape { "'\\u{102}'" => Character('\u{102}') }
+        test_character_malformed { "'m" => MalformedCharacter }
+        test_left_paren { "(" => LeftParen }
+        test_right_paren { ")" => RightParen }
+        test_left_bracket { "[" => LeftBracket }
+        test_right_bracket { "]" => RightBracket }
+        test_left_brace { "{" => LeftBrace }
+        test_right_brace { "}" => RightBrace }
+        test_left_chevron { "<" => LeftChevron }
+        test_right_chevron { ">" => RightChevron }
+        test_dot { "." => Dot }
+        test_comma { "," => Comma }
+        test_colon { ":" => Colon }
+        test_semicolon { ";" => Semicolon }
+        test_plus { "+" => Plus }
+        test_minus { "-" => Minus }
+        test_asterisk { "*" => Asterisk }
+        test_slash { "/" => Slash }
+        test_ampersand { "&" => Ampersand }
+        test_pipe { "|" => Pipe }
+        test_equal { "=" => Equal }
+        test_plus_equal { "+=" => PlusEqual }
+        test_minus_equal { "-=" => MinusEqual }
+        test_asterisk_equal { "*=" => AsteriskEqual }
+        test_slash_equal { "/=" => SlashEqual }
+        test_ampersand_equal { "&=" => AmpersandEqual }
+        test_pipe_equal { "|=" => PipeEqual }
+        test_equal_equal { "==" => EqualEqual }
+        test_not_equal { "!=" => BangEqual }
+        test_less_or_equal { "<=" => LessOrEqual }
+        test_greater_or_equal { ">=" => GreaterOrEqual }
+        test_left_shift { "<<" => LeftShift }
+        test_right_shift { ">>" => RightShift }
+        test_not { "!" => Bang }
+        test_plus_plus { "++" => PlusPlus }
+        test_minus_minus { "--" => MinusMinus }
+        test_line_comment { "// hello how are you ?\n" => }
+        test_line_comment_eof { "// hello how are you ?" => }
+        test_block_comment { "/* hello how are you ? */" => }
+        test_block_comment_lf { "/* hello how\nare you ? */" => }
+        test_block_comment_malformed { "/* hello how\nare you ?* / *" => }
+        test_eof { "" => Eof }
 
-    test_tokens!(test_fn_main {
-        "fn" => TokenKind::KeywordFn
-        "main" => TokenKind::Identifier("main")
-        "(" => TokenKind::LeftParen
-        ")" => TokenKind::RightParen
-        "{" => TokenKind::LeftBrace
-        "}" => TokenKind::RightBrace
-    });
+        test_fn_main {
+            "fn" => KeywordFn;
+            "main" => Identifier("main");
+            "(" => LeftParen;
+            ")" => RightParen;
+            "{" => LeftBrace;
+            "}" => RightBrace;
+        }
+
+        test_cool_program {
+            r#"fn main () {
+                print("Hello, world!");
+            }"#
+            => KeywordFn, Identifier("main"), LeftParen, RightParen, LeftBrace,
+                Identifier("print"), LeftParen, String("Hello, world!".into()), RightParen, Semicolon,
+            RightBrace
+        }
+    }
 }
