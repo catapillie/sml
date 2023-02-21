@@ -37,7 +37,7 @@ impl<'a> Lexer<'a> {
         } {}
 
         let Some(c) = self.cursor.peek() else {
-            return Token::new(TokenKind::Eof, TokenSpan::empty(self.source.len()));
+            return Token::new(TokenKind::Eof, TokenSpan::empty(self.cursor.location()));
         };
 
         if let Some(tok) = self.try_lex_identifier_or_keyword() {
@@ -56,7 +56,7 @@ impl<'a> Lexer<'a> {
             return tok;
         }
 
-        let start_index = self.cursor.offset();
+        let start_location = self.cursor.location();
 
         self.cursor.consume();
 
@@ -136,14 +136,14 @@ impl<'a> Lexer<'a> {
             }
 
             _ => {
-                let span = TokenSpan::new(start_index, self.cursor.offset());
+                let span = TokenSpan::new(start_location, self.cursor.location());
                 self.diagnostics
                     .push_kind(LexerDiagnosticKind::IllegalCharacter(c), span);
                 return self.lex();
             }
         };
 
-        let span = TokenSpan::new(start_index, self.cursor.offset());
+        let span = TokenSpan::new(start_location, self.cursor.location());
 
         Token::new(kind, span)
     }
@@ -166,7 +166,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn try_read_word(&mut self) -> Option<TokenSpan> {
-        let start_index = self.cursor.offset();
+        let start_location = self.cursor.location();
 
         let mut peek_iter = self.cursor.peek_iter();
         if !matches!(peek_iter.next(), Some(c) if Self::is_identifier_start(c)) {
@@ -175,7 +175,7 @@ impl<'a> Lexer<'a> {
 
         while matches!(peek_iter.next(), Some(c) if Self::is_identifier_continue(c)) {}
 
-        Some(TokenSpan::new(start_index, self.cursor.offset()))
+        Some(TokenSpan::new(start_location, self.cursor.location()))
     }
 
     fn try_lex_identifier_or_keyword(&mut self) -> Option<Token<'a>> {
@@ -209,7 +209,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn try_lex_number(&mut self) -> Option<Token<'a>> {
-        let start_index = self.cursor.offset();
+        let start_location = self.cursor.location();
 
         let mut cursor = self.cursor.clone();
 
@@ -257,7 +257,7 @@ impl<'a> Lexer<'a> {
         // NOTE: could use read word for special syntax
         let has_word = self.try_read_word().is_some();
 
-        let span = TokenSpan::new(start_index, self.cursor.offset());
+        let span = TokenSpan::new(start_location, self.cursor.location());
         let text = span.slice(self.source);
 
         if ends_with_dot {
@@ -301,7 +301,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn try_lex_string(&mut self) -> Option<Token<'a>> {
-        let start_index = self.cursor.offset();
+        let start_location = self.cursor.location();
 
         let Some('"') = self.cursor.peek() else {
             return None;
@@ -312,7 +312,7 @@ impl<'a> Lexer<'a> {
         let mut string = Some(String::new());
 
         // Start of the string data.
-        let mut push_start = start_index + 1;
+        let mut push_start = self.cursor.location();
 
         'outer_loop: loop {
             // We first loop through all of the characters that are neither '"' nor '\\'.
@@ -328,7 +328,8 @@ impl<'a> Lexer<'a> {
                                 if !string.is_empty() {
                                     // `self.cursor.offset() - 1` because we don't want to include the '"'
                                     string.push_str(
-                                        &self.source[push_start..self.cursor.offset() - 1],
+                                        &self.source
+                                            [push_start.byte()..self.cursor.location().byte() - 1],
                                     );
                                 }
                             }
@@ -342,7 +343,7 @@ impl<'a> Lexer<'a> {
                     None => {
                         self.diagnostics.push_kind(
                             LexerDiagnosticKind::UnclosedString,
-                            TokenSpan::new(start_index, self.cursor.offset()),
+                            TokenSpan::new(start_location, self.cursor.location()),
                         );
 
                         string = None;
@@ -354,7 +355,7 @@ impl<'a> Lexer<'a> {
             // Write all the characters that we looped through if the string is not malformed.
             if let Some(ref mut string) = string {
                 // `self.cursor.offset() - 1` because we don't want to include the '\\'
-                string.push_str(&self.source[push_start..self.cursor.offset() - 1]);
+                string.push_str(&self.source[push_start.byte()..self.cursor.location().byte() - 1]);
             }
 
             // Try to parse the escape sequence.
@@ -368,14 +369,17 @@ impl<'a> Lexer<'a> {
             if let Some(ref mut string) = string {
                 string.push(c);
                 // The next portion of string we will loop through starts at `self.cursor.offset()`
-                push_start = self.cursor.offset();
+                push_start = self.cursor.location();
             }
         }
 
         let kind = if let Some(string) = string {
             if string.is_empty() {
                 // No escape sequences, so no need to allocate memory
-                TokenKind::String(self.source[start_index + 1..self.cursor.offset() - 1].into())
+                TokenKind::String(
+                    self.source[start_location.byte() + 1..self.cursor.location().byte() - 1]
+                        .into(),
+                )
             } else {
                 TokenKind::String(string.into())
             }
@@ -383,13 +387,13 @@ impl<'a> Lexer<'a> {
             // HELP: is this an error? if so, push an error.
             TokenKind::MalformedString
         };
-        let span = TokenSpan::new(start_index, self.cursor.offset());
+        let span = TokenSpan::new(start_location, self.cursor.location());
 
         Some(Token::new(kind, span))
     }
 
     fn try_lex_character(&mut self) -> Option<Token<'a>> {
-        let start_index = self.cursor.offset();
+        let start_location = self.cursor.location();
 
         let Some('\'') = self.cursor.peek() else {
             return None;
@@ -399,16 +403,16 @@ impl<'a> Lexer<'a> {
         let c = {
             let Some(c) = self.cursor.next() else {
                 return Some(Token::new(TokenKind::MalformedCharacter, TokenSpan::new(
-                        start_index,
-                        self.cursor.offset(),
+                        start_location,
+                        self.cursor.location(),
                     )
                 ))
             };
             if c == '\\' {
                 let Some(c) = self.try_parse_escape_sequence() else {
                     return Some(Token::new(TokenKind::MalformedCharacter, TokenSpan::new(
-                            start_index,
-                            self.cursor.offset(),
+                            start_location,
+                            self.cursor.location(),
                         )
                     ))
                 };
@@ -424,7 +428,7 @@ impl<'a> Lexer<'a> {
             } else {
                 TokenKind::MalformedCharacter
             },
-            TokenSpan::new(start_index, self.cursor.offset()),
+            TokenSpan::new(start_location, self.cursor.location()),
         ))
     }
 
@@ -440,8 +444,8 @@ impl<'a> Lexer<'a> {
             'x' => self.try_parse_ascii_escape_sequence()?,
             'u' => self.try_parse_unicode_escape_sequence()?,
             c => {
-                let offset = self.cursor.offset();
-                let span = TokenSpan::new(offset, offset + 1);
+                let location = self.cursor.location();
+                let span = TokenSpan::new(location, location + 1);
                 self.diagnostics
                     .push_kind(LexerDiagnosticKind::InvalidEscapeCharacter(c), span);
                 return None;
@@ -450,14 +454,19 @@ impl<'a> Lexer<'a> {
     }
 
     fn try_parse_ascii_escape_sequence(&mut self) -> Option<char> {
-        let offset = self.cursor.offset();
-        let (first, second) = (self.cursor.next()?, self.cursor.next()?);
+        let first_location = self.cursor.location();
+        let first = self.cursor.next()?;
+
+        let second_location = self.cursor.location();
+        let second = self.cursor.next()?;
+
+        let last_location = self.cursor.location();
 
         let first = match first.to_digit(16) {
             None => {
                 self.diagnostics.push_kind(
                     LexerDiagnosticKind::ExpectAsciiCharacterFirst(first),
-                    TokenSpan::new(offset, offset + 1),
+                    TokenSpan::new(first_location, second_location),
                 );
                 return None;
             }
@@ -465,7 +474,7 @@ impl<'a> Lexer<'a> {
             Some(n) if n > 0x7 => {
                 self.diagnostics.push_kind(
                     LexerDiagnosticKind::InvalidAsciiCharacterCode(first, second),
-                    TokenSpan::new(offset, offset + 2),
+                    TokenSpan::new(first_location, last_location),
                 );
                 return None;
             }
@@ -476,7 +485,7 @@ impl<'a> Lexer<'a> {
             None => {
                 self.diagnostics.push_kind(
                     LexerDiagnosticKind::ExpectAsciiCharacterSecond(second),
-                    TokenSpan::new(offset + 1, offset + 2),
+                    TokenSpan::new(second_location, last_location),
                 );
                 return None;
             }
@@ -487,13 +496,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn try_parse_unicode_escape_sequence(&mut self) -> Option<char> {
+        let start_index = self.cursor.location();
+
         let brace = self.cursor.next()?;
-        let code_index = self.cursor.offset();
+        let code_index = self.cursor.location();
 
         if brace != '{' {
             self.diagnostics.push_kind(
                 LexerDiagnosticKind::InvalidUnicodeSequenceMissingLeftBrace,
-                TokenSpan::new(code_index - 2, code_index - 1),
+                TokenSpan::new(start_index, code_index),
             );
             return None;
         }
@@ -507,7 +518,7 @@ impl<'a> Lexer<'a> {
                 match char::from_u32(unicode) {
                     Some(c) => return Some(c),
                     None => {
-                        let span = TokenSpan::new(code_index, code_index + i);
+                        let span = TokenSpan::new(code_index, self.cursor.location() - 1);
                         self.diagnostics
                             .push_kind(LexerDiagnosticKind::InvalidUnicodeCharacterCode, span);
                         return None;
@@ -518,14 +529,14 @@ impl<'a> Lexer<'a> {
             if i > 5 {
                 self.diagnostics.push_kind(
                     LexerDiagnosticKind::InvalidUnicodeTooLong,
-                    TokenSpan::new(code_index, code_index + i + 1),
+                    TokenSpan::new(code_index, self.cursor.location()),
                 );
                 return None;
             }
 
             let digit = match next_char.to_digit(16) {
                 None => {
-                    let span = TokenSpan::new(code_index + i, code_index + i + 1);
+                    let span = TokenSpan::new(self.cursor.location() - 1, self.cursor.location());
                     self.diagnostics
                         .push_kind(LexerDiagnosticKind::InvalidUnicodeDigit(next_char), span);
                     return None;
@@ -542,7 +553,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn ignore_comment(&mut self) -> bool {
-        let start_index = self.cursor.offset();
+        let start_location = self.cursor.location();
 
         let mut cursor = self.cursor.clone();
 
@@ -579,7 +590,7 @@ impl<'a> Lexer<'a> {
 
                 self.diagnostics.push_kind(
                     LexerDiagnosticKind::UnclosedBlockComment,
-                    TokenSpan::new(start_index, self.cursor.offset()),
+                    TokenSpan::new(start_location, self.cursor.location()),
                 );
 
                 true

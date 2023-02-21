@@ -1,49 +1,32 @@
-use std::ops::Range;
+use super::location::Location;
 
 #[derive(Debug, Copy, Clone)]
 pub struct TokenSpan {
-    start: usize,
-    end: usize,
+    start: Location,
+    end: Location,
 }
 
 impl TokenSpan {
-    pub fn new(start: usize, end: usize) -> Self {
+    pub fn new(start: Location, end: Location) -> Self {
         if start > end {
             panic!("invalid span creation");
         }
         Self { start, end }
     }
 
-    pub fn empty(at: usize) -> Self {
+    pub fn empty(at: Location) -> Self {
         Self { start: at, end: at }
     }
 
-    pub fn start(&self) -> usize {
+    pub fn start(&self) -> Location {
         self.start
     }
 
-    pub fn end(&self) -> usize {
+    pub fn end(&self) -> Location {
         self.end
     }
 
     pub fn slice<'a>(&self, source: &'a str) -> &'a str {
-        &source[self.start..self.end]
-    }
-}
-
-impl From<Range<usize>> for TokenSpan {
-    fn from(value: Range<usize>) -> Self {
-        Self {
-            start: value.start,
-            end: value.end,
-        }
-    }
-}
-impl From<TokenSpan> for Range<usize> {
-    fn from(value: TokenSpan) -> Self {
-        Self {
-            start: value.start,
-            end: value.end,
-        }
+        &source[self.start.byte()..self.end.byte()]
     }
 }

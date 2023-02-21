@@ -1,6 +1,6 @@
-use super::{Diagnostic, kind::DiagnosticKind};
-
 use crate::lexing::token_span::TokenSpan;
+
+use super::{kind::DiagnosticKind, Diagnostic};
 
 pub struct DiagnosticList<T: DiagnosticKind> {
     list: Vec<Diagnostic<T>>,

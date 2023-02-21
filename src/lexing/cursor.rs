@@ -1,5 +1,7 @@
 use std::str::Chars;
 
+use super::location::Location;
+
 /// A struct that keeps track of the position of the cursor in the sourcce buffer.
 ///
 /// Use [`next`](Cursor::next) to get the next character in the source, and [`peek`](Cursor::peek) to peek.
@@ -9,8 +11,8 @@ pub struct Cursor<'a> {
     next: Option<char>,
     /// An iterator over the characters of the buffer.
     chars: Chars<'a>,
-    /// The offset in bytes of the next character.
-    offset: usize,
+    /// The location of the next character.
+    location: Location,
 }
 
 impl<'a> Cursor<'a> {
@@ -21,7 +23,7 @@ impl<'a> Cursor<'a> {
         Self {
             next: chars.next(),
             chars,
-            offset: 0,
+            location: Location::ZERO,
         }
     }
 
@@ -44,8 +46,8 @@ impl<'a> Cursor<'a> {
     /// Get the offset of the next character.
     ///
     /// If EOF was reached, the offset length of the source is returned.
-    pub fn offset(&self) -> usize {
-        self.offset
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     /// Creates a [`CursorPeekIter`].
@@ -62,7 +64,7 @@ impl<'a> Iterator for Cursor<'a> {
             return None
         };
 
-        self.offset += next.len_utf8();
+        self.location += next;
 
         self.next = self.chars.next();
 
