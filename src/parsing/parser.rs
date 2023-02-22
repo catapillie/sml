@@ -231,13 +231,14 @@ impl<'a> Parser<'a> {
     // NOTE: beginning tokens of expressions MUST be added in `is_expression_start`!
     fn parse_primary_expression(&mut self) -> Expression<'a> {
         match self.lookahead.discr() {
-            TokenDiscr::Int
-            | TokenDiscr::Float
-            | TokenDiscr::String
-            | TokenDiscr::Character
-            | TokenDiscr::Identifier => Expression::Literal {
+            TokenDiscr::Identifier => Expression::Identifier {
                 token: self.consume(),
             },
+            TokenDiscr::Int | TokenDiscr::Float | TokenDiscr::String | TokenDiscr::Character => {
+                Expression::Literal {
+                    token: self.consume(),
+                }
+            }
             TokenDiscr::LeftParen => {
                 let left_paren = self.consume();
                 let expression = Box::new(self.parse_expression());
@@ -288,22 +289,22 @@ mod tests {
         assert_eq!(
             TestStatement::If {
                 condition: TestExpression::BinaryOperation {
-                    left_operand: Box::new(TestExpression::Literal {
+                    left_operand: Box::new(TestExpression::Identifier {
                         token: TokenKind::Identifier("a"),
                     }),
                     operator: TokenKind::EqualEqual,
-                    right_operand: Box::new(TestExpression::Literal {
+                    right_operand: Box::new(TestExpression::Identifier {
                         token: TokenKind::Identifier("b"),
                     }),
                 },
                 statement: Box::new(TestStatement::Block {
                     statements: vec![TestStatement::Expression {
                         expression: TestExpression::BinaryOperation {
-                            left_operand: Box::new(TestExpression::Literal {
+                            left_operand: Box::new(TestExpression::Identifier {
                                 token: TokenKind::Identifier("c"),
                             }),
                             operator: TokenKind::Equal,
-                            right_operand: Box::new(TestExpression::Literal {
+                            right_operand: Box::new(TestExpression::Identifier {
                                 token: TokenKind::Identifier("d"),
                             }),
                         },
@@ -318,24 +319,24 @@ mod tests {
     fn test_assignment_expression() {
         assert_eq!(
             TestExpression::BinaryOperation {
-                left_operand: Box::new(TestExpression::Literal {
+                left_operand: Box::new(TestExpression::Identifier {
                     token: TokenKind::Identifier("a"),
                 }),
                 operator: TokenKind::Equal,
 
                 right_operand: Box::new(TestExpression::BinaryOperation {
-                    left_operand: Box::new(TestExpression::Literal {
+                    left_operand: Box::new(TestExpression::Identifier {
                         token: TokenKind::Identifier("b"),
                     }),
                     operator: TokenKind::Equal,
 
                     right_operand: Box::new(TestExpression::BinaryOperation {
-                        left_operand: Box::new(TestExpression::Literal {
+                        left_operand: Box::new(TestExpression::Identifier {
                             token: TokenKind::Identifier("c"),
                         }),
                         operator: TokenKind::Equal,
 
-                        right_operand: Box::new(TestExpression::Literal {
+                        right_operand: Box::new(TestExpression::Identifier {
                             token: TokenKind::Identifier("d"),
                         })
                     })
@@ -384,6 +385,9 @@ mod tests {
     #[derive(Debug)]
     enum TestExpression {
         None,
+        Identifier {
+            token: TokenKind<'static>,
+        },
         Literal {
             token: TokenKind<'static>,
         },
@@ -496,6 +500,14 @@ mod tests {
         fn eq(&self, other: &Expression<'a>) -> bool {
             match self {
                 Self::None => matches!(other, Expression::None),
+                Self::Identifier { token } => {
+                    matches!(other,
+                        Expression::Identifier {
+                            token: other_token
+                        }
+                        if token == other_token.kind()
+                    )
+                }
                 Self::Literal { token } => {
                     matches!(other,
                         Expression::Literal {

@@ -3,6 +3,9 @@ use crate::lexing::Token;
 #[derive(Debug)]
 pub enum Expression<'a> {
     None,
+    Identifier {
+        token: Token<'a>,
+    },
     Literal {
         token: Token<'a>,
     },
