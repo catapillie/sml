@@ -1,6 +1,6 @@
 use crate::diagnostics::{DiagnosticList, LexerDiagnosticKind};
 
-use super::{Cursor, Token, TokenKind, TokenSpan};
+use super::{Cursor, Token, TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
@@ -37,7 +37,7 @@ impl<'a> Lexer<'a> {
         } {}
 
         let Some(c) = self.cursor.peek() else {
-            return Token::new(TokenKind::Eof, TokenSpan::empty(self.cursor.location()));
+            return Token::Eof;
         };
 
         if let Some(tok) = self.try_lex_identifier_or_keyword() {
@@ -62,72 +62,72 @@ impl<'a> Lexer<'a> {
 
         // TODO: 2-lengthed symbols
         let kind = match c {
-            '(' => TokenKind::LeftParen,
-            ')' => TokenKind::RightParen,
-            '[' => TokenKind::LeftBracket,
-            ']' => TokenKind::RightBracket,
-            '{' => TokenKind::LeftBrace,
-            '}' => TokenKind::RightBrace,
+            '(' => Token::LeftParen,
+            ')' => Token::RightParen,
+            '[' => Token::LeftBracket,
+            ']' => Token::RightBracket,
+            '{' => Token::LeftBrace,
+            '}' => Token::RightBrace,
 
-            '.' => TokenKind::Dot,
-            ',' => TokenKind::Comma,
-            ':' => TokenKind::Colon,
-            ';' => TokenKind::Semicolon,
+            '.' => Token::Dot,
+            ',' => Token::Comma,
+            ':' => Token::Colon,
+            ';' => Token::Semicolon,
 
             '=' | '!' | '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' => {
                 if let Some('=') = self.cursor.peek() {
                     self.cursor.consume();
                     match c {
-                        '=' => TokenKind::EqualEqual,
-                        '!' => TokenKind::BangEqual,
-                        '+' => TokenKind::PlusEqual,
-                        '-' => TokenKind::MinusEqual,
-                        '*' => TokenKind::AsteriskEqual,
-                        '/' => TokenKind::SlashEqual,
-                        '&' => TokenKind::AmpersandEqual,
-                        '|' => TokenKind::PipeEqual,
-                        '<' => TokenKind::LessOrEqual,
-                        '>' => TokenKind::GreaterOrEqual,
+                        '=' => Token::EqualEqual,
+                        '!' => Token::BangEqual,
+                        '+' => Token::PlusEqual,
+                        '-' => Token::MinusEqual,
+                        '*' => Token::AsteriskEqual,
+                        '/' => Token::SlashEqual,
+                        '&' => Token::AmpersandEqual,
+                        '|' => Token::PipeEqual,
+                        '<' => Token::LessOrEqual,
+                        '>' => Token::GreaterOrEqual,
                         _ => unreachable!(),
                     }
                 } else {
                     match c {
-                        '=' => TokenKind::Equal,
-                        '!' => TokenKind::Bang,
+                        '=' => Token::Equal,
+                        '!' => Token::Bang,
                         '+' => {
                             if let Some('+') = self.cursor.peek() {
                                 self.cursor.consume();
-                                TokenKind::PlusPlus
+                                Token::PlusPlus
                             } else {
-                                TokenKind::Plus
+                                Token::Plus
                             }
                         }
                         '-' => {
                             if let Some('-') = self.cursor.peek() {
                                 self.cursor.consume();
-                                TokenKind::MinusMinus
+                                Token::MinusMinus
                             } else {
-                                TokenKind::Minus
+                                Token::Minus
                             }
                         }
-                        '*' => TokenKind::Asterisk,
-                        '/' => TokenKind::Slash,
-                        '&' => TokenKind::Ampersand,
-                        '|' => TokenKind::Pipe,
+                        '*' => Token::Asterisk,
+                        '/' => Token::Slash,
+                        '&' => Token::Ampersand,
+                        '|' => Token::Pipe,
                         '<' => {
                             if let Some('<') = self.cursor.peek() {
                                 self.cursor.consume();
-                                TokenKind::LeftShift
+                                Token::LeftShift
                             } else {
-                                TokenKind::LeftChevron
+                                Token::LeftChevron
                             }
                         }
                         '>' => {
                             if let Some('>') = self.cursor.peek() {
                                 self.cursor.consume();
-                                TokenKind::RightShift
+                                Token::RightShift
                             } else {
-                                TokenKind::RightChevron
+                                Token::RightChevron
                             }
                         }
                         _ => unreachable!(),
@@ -145,7 +145,7 @@ impl<'a> Lexer<'a> {
 
         let span = TokenSpan::new(start_location, self.cursor.location());
 
-        Token::new(kind, span)
+        kind(span)
     }
 
     pub fn lex_all(&mut self) -> Vec<Token> {
@@ -153,7 +153,7 @@ impl<'a> Lexer<'a> {
 
         loop {
             let tok = self.lex();
-            let is_eof = *tok.kind() == TokenKind::Eof;
+            let is_eof = matches!(tok, Token::Eof(_));
 
             tokens.push(tok);
 
