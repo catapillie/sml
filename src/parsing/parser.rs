@@ -1,4 +1,4 @@
-use std::{mem, ops::Not};
+use std::mem;
 
 use crate::{
     diagnostics::{DiagnosticList, LexerDiagnosticKind, ParserDiagnosticKind},
@@ -274,5 +274,264 @@ impl<'a> Parser<'a> {
                       | TokenDiscr::Character
                       | TokenDiscr::Identifier
                       | TokenDiscr::LeftParen)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::{lexing::TokenKind, parsing::parser_ast::ParserAST};
+
+    #[test]
+    fn test_if_statement() {
+        assert_eq!(
+            TestStatement::If {
+                condition: TestExpression::BinaryOperation {
+                    left_operand: Box::new(TestExpression::Literal {
+                        token: TokenKind::Identifier("a"),
+                    }),
+                    operator: TokenKind::EqualEqual,
+                    right_operand: Box::new(TestExpression::Literal {
+                        token: TokenKind::Identifier("b"),
+                    }),
+                },
+                statement: Box::new(TestStatement::Block {
+                    statements: vec![TestStatement::Expression {
+                        expression: TestExpression::BinaryOperation {
+                            left_operand: Box::new(TestExpression::Literal {
+                                token: TokenKind::Identifier("c"),
+                            }),
+                            operator: TokenKind::Equal,
+                            right_operand: Box::new(TestExpression::Literal {
+                                token: TokenKind::Identifier("d"),
+                            }),
+                        },
+                    }],
+                })
+            },
+            Parser::new("if a == b { c = d; }").parse_statement(),
+        );
+    }
+
+    #[test]
+    fn test_assignment_expression() {
+        assert_eq!(
+            TestExpression::BinaryOperation {
+                left_operand: Box::new(TestExpression::Literal {
+                    token: TokenKind::Identifier("a"),
+                }),
+                operator: TokenKind::Equal,
+
+                right_operand: Box::new(TestExpression::BinaryOperation {
+                    left_operand: Box::new(TestExpression::Literal {
+                        token: TokenKind::Identifier("b"),
+                    }),
+                    operator: TokenKind::Equal,
+
+                    right_operand: Box::new(TestExpression::BinaryOperation {
+                        left_operand: Box::new(TestExpression::Literal {
+                            token: TokenKind::Identifier("c"),
+                        }),
+                        operator: TokenKind::Equal,
+
+                        right_operand: Box::new(TestExpression::Literal {
+                            token: TokenKind::Identifier("d"),
+                        })
+                    })
+                })
+            },
+            Parser::new("a = b = c = d").parse_expression(),
+        );
+    }
+
+    #[allow(dead_code)]
+    #[derive(Debug)]
+    enum TestParserAST {
+        Statement(TestStatement),
+        Expression(TestExpression),
+    }
+
+    #[allow(dead_code)]
+    #[derive(Debug)]
+    enum TestStatement {
+        None,
+        Block {
+            statements: Vec<TestStatement>,
+        },
+        If {
+            condition: TestExpression,
+            statement: Box<TestStatement>,
+        },
+        Unless {
+            condition: TestExpression,
+            statement: Box<TestStatement>,
+        },
+        While {
+            condition: TestExpression,
+            statement: Box<TestStatement>,
+        },
+        Until {
+            condition: TestExpression,
+            statement: Box<TestStatement>,
+        },
+        Expression {
+            expression: TestExpression,
+        },
+    }
+
+    #[allow(dead_code)]
+    #[derive(Debug)]
+    enum TestExpression {
+        None,
+        Literal {
+            token: TokenKind<'static>,
+        },
+        Parenthesized {
+            expression: Box<TestExpression>,
+        },
+        BinaryOperation {
+            left_operand: Box<TestExpression>,
+            operator: TokenKind<'static>,
+            right_operand: Box<TestExpression>,
+        },
+        UnaryOperation {
+            operator: TokenKind<'static>,
+            operand: Box<TestExpression>,
+        },
+    }
+
+    impl<'a> PartialEq<ParserAST<'a>> for TestParserAST {
+        fn eq(&self, other: &ParserAST<'a>) -> bool {
+            match self {
+                Self::Statement(statement) => {
+                    matches!(other, ParserAST::Statement(other_statement) if statement == other_statement)
+                }
+                Self::Expression(expression) => {
+                    matches!(other, ParserAST::Expression(other_expression) if expression == other_expression)
+                }
+            }
+        }
+    }
+
+    impl<'a> PartialEq<Statement<'a>> for TestStatement {
+        fn eq(&self, other: &Statement<'a>) -> bool {
+            match self {
+                Self::None => matches!(other, Statement::None),
+                Self::Block { statements } => {
+                    matches!(other,
+                        Statement::Block {
+                            statements: other_statements,
+                            ..
+                        }
+                        if statements == other_statements
+                    )
+                }
+                Self::If {
+                    condition,
+                    statement,
+                } => {
+                    matches!(other,
+                        Statement::If {
+                            condition: other_condition,
+                            statement: other_statement,
+                            ..
+                        }
+                        if condition == other_condition && **statement == **other_statement
+                    )
+                }
+                Self::Unless {
+                    condition,
+                    statement,
+                } => {
+                    matches!(other,
+                        Statement::Unless {
+                            condition: other_condition,
+                            statement: other_statement,
+                            ..
+                        }
+                        if condition == other_condition && **statement == **other_statement
+                    )
+                }
+                Self::While {
+                    condition,
+                    statement,
+                } => {
+                    matches!(other,
+                        Statement::While {
+                            condition: other_condition,
+                            statement: other_statement,
+                            ..
+                        }
+                        if condition == other_condition && **statement == **other_statement
+                    )
+                }
+                Self::Until {
+                    condition,
+                    statement,
+                } => {
+                    matches!(other,
+                        Statement::Until {
+                            condition: other_condition,
+                            statement: other_statement,
+                            ..
+                        }
+                        if condition == other_condition && **statement == **other_statement
+                    )
+                }
+                Self::Expression { expression, .. } => {
+                    matches!(other,
+                        Statement::Expression {
+                            expression: other_expression,
+                            ..
+                        }
+                        if expression == other_expression
+                    )
+                }
+            }
+        }
+    }
+
+    impl<'a> PartialEq<Expression<'a>> for TestExpression {
+        fn eq(&self, other: &Expression<'a>) -> bool {
+            match self {
+                Self::None => matches!(other, Expression::None),
+                Self::Literal { token } => {
+                    matches!(other,
+                        Expression::Literal {
+                            token: other_token
+                        }
+                        if token == other_token.kind()
+                    )
+                }
+                Self::Parenthesized { expression } => {
+                    matches!(other,
+                        Expression::Parenthesized {
+                            expression: other_expression, ..} if **expression == **other_expression)
+                }
+                Self::BinaryOperation {
+                    left_operand,
+                    operator,
+                    right_operand,
+                } => {
+                    matches!(other,
+                        Expression::BinaryOperation {
+                            left_operand: other_left_operand,
+                            operator: other_operator, right_operand: other_right_operand
+                        }
+                        if **left_operand == **other_left_operand && operator == other_operator.kind() && **right_operand == **other_right_operand
+                    )
+                }
+                Self::UnaryOperation { operator, operand } => {
+                    matches!(other,
+                        Expression::UnaryOperation {
+                            operator: other_operator,
+                            operand: other_operand
+                        }
+                        if operator == other_operator.kind() && **operand == **other_operand
+                    )
+                }
+            }
+        }
     }
 }
