@@ -1,6 +1,6 @@
 use crate::diagnostics::{DiagnosticList, LexerDiagnosticKind};
 
-use super::{Cursor, Token, TokenSpan};
+use super::{token::OnlySpanToken, Cursor, Token, TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
@@ -60,74 +60,73 @@ impl<'a> Lexer<'a> {
 
         self.cursor.consume();
 
-        // TODO: 2-lengthed symbols
         let kind = match c {
-            '(' => Token::LeftParen,
-            ')' => Token::RightParen,
-            '[' => Token::LeftBracket,
-            ']' => Token::RightBracket,
-            '{' => Token::LeftBrace,
-            '}' => Token::RightBrace,
+            '(' => OnlySpanToken::LeftParen,
+            ')' => OnlySpanToken::RightParen,
+            '[' => OnlySpanToken::LeftBracket,
+            ']' => OnlySpanToken::RightBracket,
+            '{' => OnlySpanToken::LeftBrace,
+            '}' => OnlySpanToken::RightBrace,
 
-            '.' => Token::Dot,
-            ',' => Token::Comma,
-            ':' => Token::Colon,
-            ';' => Token::Semicolon,
+            '.' => OnlySpanToken::Dot,
+            ',' => OnlySpanToken::Comma,
+            ':' => OnlySpanToken::Colon,
+            ';' => OnlySpanToken::Semicolon,
 
             '=' | '!' | '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' => {
                 if let Some('=') = self.cursor.peek() {
                     self.cursor.consume();
                     match c {
-                        '=' => Token::EqualEqual,
-                        '!' => Token::BangEqual,
-                        '+' => Token::PlusEqual,
-                        '-' => Token::MinusEqual,
-                        '*' => Token::AsteriskEqual,
-                        '/' => Token::SlashEqual,
-                        '&' => Token::AmpersandEqual,
-                        '|' => Token::PipeEqual,
-                        '<' => Token::LessOrEqual,
-                        '>' => Token::GreaterOrEqual,
+                        '=' => OnlySpanToken::EqualEqual,
+                        '!' => OnlySpanToken::BangEqual,
+                        '+' => OnlySpanToken::PlusEqual,
+                        '-' => OnlySpanToken::MinusEqual,
+                        '*' => OnlySpanToken::AsteriskEqual,
+                        '/' => OnlySpanToken::SlashEqual,
+                        '&' => OnlySpanToken::AmpersandEqual,
+                        '|' => OnlySpanToken::PipeEqual,
+                        '<' => OnlySpanToken::LessOrEqual,
+                        '>' => OnlySpanToken::GreaterOrEqual,
                         _ => unreachable!(),
                     }
                 } else {
                     match c {
-                        '=' => Token::Equal,
-                        '!' => Token::Bang,
+                        '=' => OnlySpanToken::Equal,
+                        '!' => OnlySpanToken::Bang,
                         '+' => {
                             if let Some('+') = self.cursor.peek() {
                                 self.cursor.consume();
-                                Token::PlusPlus
+                                OnlySpanToken::PlusPlus
                             } else {
-                                Token::Plus
+                                OnlySpanToken::Plus
                             }
                         }
                         '-' => {
                             if let Some('-') = self.cursor.peek() {
                                 self.cursor.consume();
-                                Token::MinusMinus
+                                OnlySpanToken::MinusMinus
                             } else {
-                                Token::Minus
+                                OnlySpanToken::Minus
                             }
                         }
-                        '*' => Token::Asterisk,
-                        '/' => Token::Slash,
-                        '&' => Token::Ampersand,
-                        '|' => Token::Pipe,
+                        '*' => OnlySpanToken::Asterisk,
+                        '/' => OnlySpanToken::Slash,
+                        '&' => OnlySpanToken::Ampersand,
+                        '|' => OnlySpanToken::Pipe,
                         '<' => {
                             if let Some('<') = self.cursor.peek() {
                                 self.cursor.consume();
-                                Token::LeftShift
+                                OnlySpanToken::LeftShift
                             } else {
-                                Token::LeftChevron
+                                OnlySpanToken::LeftChevron
                             }
                         }
                         '>' => {
                             if let Some('>') = self.cursor.peek() {
                                 self.cursor.consume();
-                                Token::RightShift
+                                OnlySpanToken::RightShift
                             } else {
-                                Token::RightChevron
+                                OnlySpanToken::RightChevron
                             }
                         }
                         _ => unreachable!(),
@@ -145,7 +144,7 @@ impl<'a> Lexer<'a> {
 
         let span = TokenSpan::new(start_location, self.cursor.location());
 
-        kind(span)
+        kind(span).into()
     }
 
     pub fn lex_all(&mut self) -> Vec<Token> {

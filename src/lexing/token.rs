@@ -116,6 +116,52 @@ macro_rules! make_token {
     ) => {
         Some($token.span)
     };
+    (@onlyspan
+        $(
+            $Name:ident $($nospan:ident)? $({$($tt:tt)*})?
+        );*
+    ) => {
+        make_token! {@onlyspan_impl
+            $(
+                $Name $($nospan)? $({$($tt)*})? "onlyspan"
+            );*
+        }
+    };
+    (@onlyspan_impl
+        $(
+            $Name:ident $($onlyspan:literal)? $(nospan $({$($tt:tt)*})? "onlyspan")? $({$($_tt:tt)*} "onlyspan")?
+        );*
+    ) => {
+        make_token! {@onlyspan_impl_impl
+            $(
+                $($onlyspan $Name,)?
+            )*
+        }
+    };
+    (@onlyspan_impl_impl
+        $(
+            $tt:tt $Name:ident,
+        )*
+    ) => {
+        #[derive(Debug)]
+        pub enum OnlySpanToken {
+            $(
+                $Name(crate::lexing::TokenSpan)
+            ),*
+        }
+
+        impl<'a> From<OnlySpanToken> for Token<'a> {
+            fn from(value: OnlySpanToken) -> Self {
+                match value {
+                    $(
+                        OnlySpanToken::$Name(span) => Token::$Name {
+                            span,
+                        }
+                    ),*
+                }
+            }
+        }
+    };
     ($(
         $Name:ident$(<$lt:lifetime>)? $($nospan:ident)? $({$($tt:tt)*})?
     );*$(;)?) => {
@@ -131,6 +177,12 @@ macro_rules! make_token {
             $(
                 $Name
             ),*
+        }
+
+        make_token! {@onlyspan
+            $(
+                $Name $($nospan)? $({$($tt)*})?
+            );*
         }
 
         impl<'a> Token<'a> {
