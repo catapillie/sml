@@ -1,6 +1,11 @@
+use std::{
+    num::{IntErrorKind, ParseIntError},
+    ops::Not,
+};
+
 use crate::diagnostics::{DiagnosticList, LexerDiagnosticKind};
 
-use super::{token::OnlySpanToken, Cursor, Token, TokenSpan};
+use super::{Cursor, Token, TokenSpan};
 
 pub struct Lexer<'a> {
     source: &'a str,
@@ -37,7 +42,7 @@ impl<'a> Lexer<'a> {
         } {}
 
         let Some(c) = self.cursor.peek() else {
-            return Token::Eof;
+            return Token::eof();
         };
 
         if let Some(tok) = self.try_lex_identifier_or_keyword() {
@@ -61,72 +66,72 @@ impl<'a> Lexer<'a> {
         self.cursor.consume();
 
         let kind = match c {
-            '(' => OnlySpanToken::LeftParen,
-            ')' => OnlySpanToken::RightParen,
-            '[' => OnlySpanToken::LeftBracket,
-            ']' => OnlySpanToken::RightBracket,
-            '{' => OnlySpanToken::LeftBrace,
-            '}' => OnlySpanToken::RightBrace,
+            '(' => Token::left_paren,
+            ')' => Token::right_paren,
+            '[' => Token::left_bracket,
+            ']' => Token::right_bracket,
+            '{' => Token::left_brace,
+            '}' => Token::right_brace,
 
-            '.' => OnlySpanToken::Dot,
-            ',' => OnlySpanToken::Comma,
-            ':' => OnlySpanToken::Colon,
-            ';' => OnlySpanToken::Semicolon,
+            '.' => Token::dot,
+            ',' => Token::comma,
+            ':' => Token::colon,
+            ';' => Token::semicolon,
 
             '=' | '!' | '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' => {
                 if let Some('=') = self.cursor.peek() {
                     self.cursor.consume();
                     match c {
-                        '=' => OnlySpanToken::EqualEqual,
-                        '!' => OnlySpanToken::BangEqual,
-                        '+' => OnlySpanToken::PlusEqual,
-                        '-' => OnlySpanToken::MinusEqual,
-                        '*' => OnlySpanToken::AsteriskEqual,
-                        '/' => OnlySpanToken::SlashEqual,
-                        '&' => OnlySpanToken::AmpersandEqual,
-                        '|' => OnlySpanToken::PipeEqual,
-                        '<' => OnlySpanToken::LessOrEqual,
-                        '>' => OnlySpanToken::GreaterOrEqual,
+                        '=' => Token::equal_equal,
+                        '!' => Token::bang_equal,
+                        '+' => Token::plus_equal,
+                        '-' => Token::minus_equal,
+                        '*' => Token::asterisk_equal,
+                        '/' => Token::slash_equal,
+                        '&' => Token::ampersand_equal,
+                        '|' => Token::pipe_equal,
+                        '<' => Token::less_or_equal,
+                        '>' => Token::greater_or_equal,
                         _ => unreachable!(),
                     }
                 } else {
                     match c {
-                        '=' => OnlySpanToken::Equal,
-                        '!' => OnlySpanToken::Bang,
+                        '=' => Token::equal,
+                        '!' => Token::bang,
                         '+' => {
                             if let Some('+') = self.cursor.peek() {
                                 self.cursor.consume();
-                                OnlySpanToken::PlusPlus
+                                Token::plus_plus
                             } else {
-                                OnlySpanToken::Plus
+                                Token::plus
                             }
                         }
                         '-' => {
                             if let Some('-') = self.cursor.peek() {
                                 self.cursor.consume();
-                                OnlySpanToken::MinusMinus
+                                Token::minus_minus
                             } else {
-                                OnlySpanToken::Minus
+                                Token::minus
                             }
                         }
-                        '*' => OnlySpanToken::Asterisk,
-                        '/' => OnlySpanToken::Slash,
-                        '&' => OnlySpanToken::Ampersand,
-                        '|' => OnlySpanToken::Pipe,
+                        '*' => Token::asterisk,
+                        '/' => Token::slash,
+                        '&' => Token::ampersand,
+                        '|' => Token::pipe,
                         '<' => {
                             if let Some('<') = self.cursor.peek() {
                                 self.cursor.consume();
-                                OnlySpanToken::LeftShift
+                                Token::left_shift
                             } else {
-                                OnlySpanToken::LeftChevron
+                                Token::left_chevron
                             }
                         }
                         '>' => {
                             if let Some('>') = self.cursor.peek() {
                                 self.cursor.consume();
-                                OnlySpanToken::RightShift
+                                Token::right_shift
                             } else {
-                                OnlySpanToken::RightChevron
+                                Token::right_chevron
                             }
                         }
                         _ => unreachable!(),
@@ -185,18 +190,19 @@ impl<'a> Lexer<'a> {
         let text = span.slice(self.source);
 
         let kind = match text {
-            "fn" => TokenKind::KeywordFn,
-            "if" => TokenKind::KeywordIf,
-            "unless" => TokenKind::KeywordUnless,
-            "while" => TokenKind::KeywordWhile,
-            "until" => TokenKind::KeywordUntil,
-            "else" => TokenKind::KeywordElse,
-            "forever" => TokenKind::KeywordForever,
-            "repeat" => TokenKind::KeywordRepeat,
-            _ => TokenKind::Identifier(text),
+            "fn" => Token::keyword_fn,
+            "if" => Token::keyword_if,
+            "unless" => Token::keyword_unless,
+            "while" => Token::keyword_while,
+            "until" => Token::keyword_until,
+            "else" => Token::keyword_else,
+            "forever" => Token::keyword_forever,
+            "repeat" => Token::keyword_repeat,
+
+            _ => return Some(Token::identifier(text, span)),
         };
 
-        Some(Token::new(kind, span))
+        Some(kind(span))
     }
 
     fn is_identifier_start(c: char) -> bool {
@@ -260,43 +266,49 @@ impl<'a> Lexer<'a> {
         let text = span.slice(self.source);
 
         if ends_with_dot {
-            return Some(Token::new(TokenKind::MalformedFloat, span));
+            return Some(Token::float(None, span));
         }
 
         #[allow(clippy::collapsible_else_if)]
-        let kind = if !is_float {
-            if has_word {
-                self.diagnostics
-                    .push_kind(LexerDiagnosticKind::InvalidIntegerTrailingWord, span);
-                TokenKind::MalformedInt
-            } else {
-                match text.parse() {
-                    Ok(num) => TokenKind::Int(num),
-                    Err(_) => {
-                        self.diagnostics
-                            .push_kind(LexerDiagnosticKind::InvalidIntegerTooLarge, span);
-                        TokenKind::MalformedInt
-                    }
-                }
-            }
-        } else {
-            if has_word {
-                self.diagnostics
-                    .push_kind(LexerDiagnosticKind::InvalidFloatTrailingWord, span);
-                TokenKind::MalformedFloat
-            } else {
-                match text.parse() {
-                    Ok(num) => TokenKind::Float(num),
-                    Err(_) => {
-                        self.diagnostics
-                            .push_kind(LexerDiagnosticKind::InvalidFloat, span);
-                        TokenKind::MalformedFloat
-                    }
-                }
-            }
-        };
+        Some(if !is_float {
+            Token::int(
+                has_word
+                    .not()
+                    .then(|| {
+                        let res: Result<u64, ParseIntError> = text.parse();
 
-        Some(Token::new(kind, span))
+                        if let Err(ref err) = res {
+                            let IntErrorKind::PosOverflow = err.kind() else {
+                        panic!("Integer parsing failed for an unhandled reason: {:?}", err);
+                    };
+
+                            self.diagnostics
+                                .push_kind(LexerDiagnosticKind::InvalidIntegerTooLarge, span);
+                        }
+
+                        res.ok()
+                    })
+                    .flatten(),
+                span,
+            )
+        } else {
+            Token::float(
+                has_word
+                    .not()
+                    .then(|| {
+                        let res = text.parse();
+
+                        if let Err(_) = res {
+                            self.diagnostics
+                                .push_kind(LexerDiagnosticKind::InvalidFloat, span);
+                        }
+
+                        res.ok()
+                    })
+                    .flatten(),
+                span,
+            )
+        })
     }
 
     fn try_lex_string(&mut self) -> Option<Token<'a>> {
@@ -372,23 +384,9 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        let kind = if let Some(string) = string {
-            if string.is_empty() {
-                // No escape sequences, so no need to allocate memory
-                TokenKind::String(
-                    self.source[start_location.byte() + 1..self.cursor.location().byte() - 1]
-                        .into(),
-                )
-            } else {
-                TokenKind::String(string.into())
-            }
-        } else {
-            // HELP: is this an error? if so, push an error.
-            TokenKind::MalformedString
-        };
         let span = TokenSpan::new(start_location, self.cursor.location());
 
-        Some(Token::new(kind, span))
+        Some(Token::string(string.map(Into::into), span))
     }
 
     fn try_lex_character(&mut self) -> Option<Token<'a>> {
@@ -399,34 +397,20 @@ impl<'a> Lexer<'a> {
         };
         self.cursor.consume();
 
-        let c = {
-            let Some(c) = self.cursor.next() else {
-                return Some(Token::new(TokenKind::MalformedCharacter, TokenSpan::new(
-                        start_location,
-                        self.cursor.location(),
-                    )
-                ))
-            };
-            if c == '\\' {
-                let Some(c) = self.try_parse_escape_sequence() else {
-                    return Some(Token::new(TokenKind::MalformedCharacter, TokenSpan::new(
-                            start_location,
-                            self.cursor.location(),
-                        )
-                    ))
-                };
-                c
-            } else {
-                c
-            }
-        };
+        let c = self
+            .cursor
+            .next()
+            .and_then(|c| {
+                if c != '\\' {
+                    Some(c)
+                } else {
+                    self.try_parse_escape_sequence()
+                }
+            })
+            .and_then(|c| matches!(self.cursor.next(), Some('\'')).then_some(c));
 
-        Some(Token::new(
-            if let Some('\'') = self.cursor.next() {
-                TokenKind::Character(c)
-            } else {
-                TokenKind::MalformedCharacter
-            },
+        Some(Token::character(
+            c,
             TokenSpan::new(start_location, self.cursor.location()),
         ))
     }
@@ -602,8 +586,6 @@ impl<'a> Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     macro_rules! join {
         ($sep:literal; $first:literal $($other:literal)*) => {
             concat!($first, $($sep, $other),*)
@@ -614,7 +596,10 @@ mod tests {
         ($(
             $name:ident {
                 $(
-                    $raw:literal => $($kind:expr),*$(,)?
+                    $raw:literal
+                        => $($token_discr:ident $({
+                            $($arg_name:ident: $arg_val:expr),*$(,)?
+                        })?),*$(,)?
                 );*$(;)?
             }
         )*) => {
@@ -622,45 +607,54 @@ mod tests {
                 #[test]
                 fn $name() {
                     #[allow(unused_imports)]
-                    use crate::lexing::{Lexer, TokenSpan, Location, TokenKind::*};
+                    use crate::lexing::{Lexer, TokenSpan, Location, Token, TokenDiscr, token};
 
                     let mut lexer = Lexer::new(join!(" "; $($raw)*));
 
-                    let expected_kinds = [$(&[$($kind),*]),*];
-                    let raws = [$($raw),*];
-
                     let mut pos = 0;
 
-                    for (kinds, raw) in std::iter::zip(expected_kinds.into_iter(), raws.into_iter()) {
-                        if kinds.len() == 1 {
+                    $(
+                        let expecteds: &[&dyn Fn(crate::lexing::TokenSpan) -> Token<'static>] = &[$(&|span| Token::$token_discr(token::$token_discr {
+                            $($($arg_name: $arg_val,)*)?
+                            span
+                        })),*];
+
+                        let raw = $raw;
+
+                        if expecteds.len() == 1 {
                             let start = pos;
                             let end = start + raw.len();
 
                             let token = lexer.lex();
 
-                            let kind: &TokenKind = &kinds[0];
+                            let expected = &expecteds[0];
 
-                            assert_eq!(kind, token.kind());
-                            assert_eq!(
+                            assert_eq!(expected(
                                 TokenSpan::new(
                                     // we don't care about the line and the column because they are not checked in the `PartialEq` implementation of `Location`
                                     Location::new(start, 0, 0),
                                     Location::new(end, 0, 0),
                                 ),
-                                token.span()
-                            );
+                            ), token);
                         } else {
-                            for kind in kinds {
-                                assert_eq!(kind, lexer.lex().kind());
-                            }
+                            $(
+                                let token = lexer.lex();
+
+                                let Token::$token_discr(token) = token else {
+                                    panic!("The token kind of the parsed token does not match: {:?} != {}", token, stringify!($token_discr));
+                                };
+                                $($(
+                                    assert_eq!($arg_val, *token.$arg_name());
+                                )*)?
+                            )*
                         }
 
                         pos += raw.len() + 1;
-                    }
+                    )*
 
                     let remaining = lexer.lex_all();
 
-                    let TokenKind::Eof = remaining[0].kind() else {
+                    let TokenDiscr::Eof = remaining[0].discr() else {
                         panic!("Remaining tokens: {:#?}.", remaining);
                     };
                 }
@@ -677,27 +671,27 @@ mod tests {
         test_keyword_else { "else" => KeywordElse }
         test_keyword_forever { "forever" => KeywordForever }
         test_keyword_repeat { "repeat" => KeywordRepeat }
-        test_identifier_abc { "abc" => Identifier("abc") }
-        test_identifier_abclonger { "abclonger" => Identifier("abclonger") }
-        test_identifier_main { "main" => Identifier("main") }
-        test_integer_0 { "0" => Int(0) }
-        test_integer_65536 { "65536" => Int(65536) }
-        test_integer_1 { "1" => Int(1) }
-        test_integer_2048_malformed { "2048malformed" => MalformedInt }
-        test_float_2_5 { "2.5" => Float(2.5) }
-        test_float_0_2 { ".2" => Float(0.2) }
-        test_float_2_0 { "2." => MalformedFloat }
-        test_float_20_48_malformed { "20.48malformed" => MalformedFloat }
-        test_string_empty { "\"\"" => String("".into()) }
-        test_string_this_is_a_string_literal { "\"this is a string literal\"" => String("this is a string literal".into()) }
-        test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => String("hello\nhi\twhat\ridk\\yes\0or\"no".into()) }
-        test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => String("\x5E\x6F\x61\u{102}\u{12345}\u{103456}".into()) }
-        test_string_malformed { "\"malformed" => MalformedString }
-        test_character_a { "'a'" => Character('a') }
-        test_character_b { "'b'" => Character('b') }
-        test_character_ascii_escape { "'\\x5E'" => Character('\x5E') }
-        test_character_unicode_escape { "'\\u{102}'" => Character('\u{102}') }
-        test_character_malformed { "'m" => MalformedCharacter }
+        test_identifier_abc { "abc" => Identifier { name: "abc" } }
+        test_identifier_abclonger { "abclonger" => Identifier { name: "abclonger" } }
+        test_identifier_main { "main" => Identifier { name: "main" } }
+        test_integer_0 { "0" => Int { value: Some(0) } }
+        test_integer_65536 { "65536" => Int { value: Some(65536) } }
+        test_integer_1 { "1" => Int { value: Some(1) } }
+        test_integer_2048_malformed { "2048malformed" => Int { value: None } }
+        test_float_2_5 { "2.5" => Float { value: Some(2.5) } }
+        test_float_0_2 { ".2" => Float { value: Some(0.2) } }
+        test_float_2_0 { "2." => Float { value: None } }
+        test_float_20_48_malformed { "20.48malformed" => Float { value: None } }
+        test_string_empty { "\"\"" => String { value: Some("".into()) } }
+        test_string_this_is_a_string_literal { "\"this is a string literal\"" => String { value: Some("this is a string literal".into()) } }
+        test_string_escape_sequences { "\"hello\\nhi\\twhat\\ridk\\\\yes\\0or\\\"no\"" => String { value: Some("hello\nhi\twhat\ridk\\yes\0or\"no".into()) } }
+        test_string_ascii_unicode_escape { "\"\\x5E\\x6F\\x61\\u{102}\\u{12345}\\u{103456}\"" => String { value: Some("\x5E\x6F\x61\u{102}\u{12345}\u{103456}".into()) } }
+        test_string_malformed { "\"malformed" => String { value: None } }
+        test_character_a { "'a'" => Character { value: Some('a') } }
+        test_character_b { "'b'" => Character { value: Some('b') } }
+        test_character_ascii_escape { "'\\x5E'" => Character { value: Some('\x5E') } }
+        test_character_unicode_escape { "'\\u{102}'" => Character { value: Some('\u{102}') } }
+        test_character_malformed { "'m" => Character { value: None } }
         test_left_paren { "(" => LeftParen }
         test_right_paren { ")" => RightParen }
         test_left_bracket { "[" => LeftBracket }
@@ -737,11 +731,11 @@ mod tests {
         test_block_comment { "/* hello how are you ? */" => }
         test_block_comment_lf { "/* hello how\nare you ? */" => }
         test_block_comment_malformed { "/* hello how\nare you ?* / *" => }
-        test_eof { "" => Eof }
+        test_eof { "" => }
 
         test_fn_main {
             "fn" => KeywordFn;
-            "main" => Identifier("main");
+            "main" => Identifier{name: "main"};
             "(" => LeftParen;
             ")" => RightParen;
             "{" => LeftBrace;
@@ -752,8 +746,8 @@ mod tests {
             r#"fn main () {
                 print("Hello, world!");
             }"#
-            => KeywordFn, Identifier("main"), LeftParen, RightParen, LeftBrace,
-                Identifier("print"), LeftParen, String("Hello, world!".into()), RightParen, Semicolon,
+            => KeywordFn, Identifier{name: "main"}, LeftParen, RightParen, LeftBrace,
+                Identifier{name: "print"}, LeftParen, String{value: Some("Hello, world!".into())}, RightParen, Semicolon,
             RightBrace
         }
     }
