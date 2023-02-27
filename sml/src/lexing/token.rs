@@ -73,5 +73,5 @@ gen_tokens! {
     PlusPlus;
     MinusMinus;
 
-    Eof nospan;
+    Eof;
 }

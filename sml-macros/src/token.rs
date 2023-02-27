@@ -1,11 +1,8 @@
-use std::ops::Not;
-
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     self,
-    ext::IdentExt,
     parse::{self, Parse, ParseStream, Parser},
     punctuated::Punctuated,
     token::Brace,
@@ -30,7 +27,7 @@ pub fn gen_tokens(input: TokenStream) -> syn::Result<TokenStream> {
     let discr_match_branches = input_tokens.iter().map(InputToken::gen_discr_match_branch);
 
     Ok(quote! {
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug, PartialEq, Clone)]
         pub enum Token<'a> {
             #(#variants),*
         }
@@ -43,7 +40,7 @@ pub fn gen_tokens(input: TokenStream) -> syn::Result<TokenStream> {
         impl<'a> Token<'a> {
             #(#constructors)*
 
-            pub fn span(&self) -> Option<crate::lexing::TokenSpan> {
+            pub fn span(&self) -> crate::lexing::TokenSpan {
                 match self {
                     #(#span_match_branches),*
                 }
@@ -65,7 +62,6 @@ pub fn gen_tokens(input: TokenStream) -> syn::Result<TokenStream> {
 struct InputToken {
     name: Ident,
     has_lifetime: bool,
-    nospan: bool,
     fields: Option<FieldsNamed>,
 }
 
@@ -97,12 +93,10 @@ impl InputToken {
                 quote!(#field)
             });
 
-        let span = self.nospan.not().then(move || {
-            let span = span_fn();
-            quote!(#span)
-        });
+        let span = span_fn();
+        let span = quote!(#span);
 
-        fields.chain(span)
+        fields.chain([span].into_iter())
     }
 
     fn gen_variant(&self) -> TokenStream {
@@ -142,14 +136,36 @@ impl InputToken {
     }
 
     fn gen_struct(&self) -> TokenStream {
+        let name = &self.name;
         let ty = self.gen_type();
 
         let fields = self.gen_fields(|field| field, || quote! { span: crate::lexing::TokenSpan });
 
         quote! {
-            #[derive(Debug, PartialEq)]
+            #[derive(Debug, PartialEq, Clone)]
             pub struct #ty {
                 #(#fields),*
+            }
+
+            impl<'a> TryFrom<Token<'a>> for #ty {
+                type Error = Token<'a>;
+
+                fn try_from(token: Token<'a>) -> Result<Self, Self::Error> {
+                    match token {
+                        Token::#name(value) => Ok(value),
+                        token => return Err(token),
+                    }
+                }
+            }
+
+            impl<'a> Into<Token<'a>> for #ty {
+                fn into(self) -> Token<'a> {
+                    Token::#name(self)
+                }
+            }
+
+            impl<'a> crate::lexing::TokenKind<'a> for #ty {
+                const NAME: &'static str = stringify!(#name);
             }
         }
     }
@@ -186,16 +202,10 @@ impl InputToken {
     }
 
     fn gen_span_match_branch(&self) -> TokenStream {
-        let get_span = if self.nospan {
-            quote!(None)
-        } else {
-            quote!(Some(token.span))
-        };
-
         let name = &self.name;
 
         quote! {
-            Self::#name(token) => #get_span
+            Self::#name(token) => token.span
         }
     }
 
@@ -225,16 +235,6 @@ impl Parse for InputToken {
                 input.parse::<Token![<]>().unwrap();
                 input.parse::<Lifetime>()?;
                 input.parse::<Token![>]>()?;
-                true
-            },
-            nospan: input.peek(Ident::peek_any) && {
-                let nospan: Ident = input.parse().unwrap();
-                if nospan != "nospan" {
-                    return Err(syn::Error::new_spanned(
-                        nospan,
-                        "Expected identifier `nospan`.",
-                    ));
-                }
                 true
             },
             fields: if input.peek(Brace) {

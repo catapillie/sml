@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use syn::Error;
 
 mod token;
-mod token_type;
+mod token_kind;
 
 #[proc_macro]
 pub fn gen_tokens(input: TokenStream) -> TokenStream {
@@ -12,8 +12,8 @@ pub fn gen_tokens(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn gen_token_type(input: TokenStream) -> TokenStream {
-    token_type::gen_token_type(input.into())
+pub fn gen_token_kind(input: TokenStream) -> TokenStream {
+    token_kind::gen_token_kind(input.into())
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }

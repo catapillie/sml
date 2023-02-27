@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use sml::Parser;
+use sml::{DiagnosticsList, Parser};
 
 fn main() {
     loop {
@@ -13,30 +13,23 @@ fn main() {
             .read_line(&mut source)
             .expect("couldn't read line!");
 
-        let mut parser = Parser::new(&source);
+        let diagnostics = DiagnosticsList::new();
+        let mut parser = Parser::new(&source, &diagnostics);
 
-        let ast = parser.parse_statement();
+        let ast = parser.parse_statement(false);
         println!("\n{ast:#?}");
 
-        let lexer_diagnostics = parser.lexer_diagnostics();
-        let parser_diagnostics = parser.diagnostics();
+        let diagnostics = diagnostics.to_vec();
 
-        if lexer_diagnostics.list().is_empty() && parser_diagnostics.list().is_empty() {
+        if diagnostics.is_empty() {
             println!("\n[OK] parsing finished successfully.");
-        } else {
-            println!("\n[!] parsing finished abnormally:");
+            continue;
+        }
 
-            if !lexer_diagnostics.list().is_empty() {
-                for e in lexer_diagnostics.list() {
-                    println!("    {}", e.build_message(&source));
-                }
-            }
+        println!("\n[!] parsing finished abnormally:");
 
-            if !parser_diagnostics.list().is_empty() {
-                for e in parser_diagnostics.list() {
-                    println!("    {}", e.build_message(&source));
-                }
-            }
+        for d in diagnostics {
+            println!("    {:?}", d); // TODO: build message
         }
     }
 }

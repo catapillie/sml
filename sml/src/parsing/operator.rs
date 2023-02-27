@@ -1,13 +1,10 @@
-use crate::{
-    lexing::Token,
-    parsing::Associativity,
-};
+use crate::parsing::Associativity;
 
 use super::OperatorPriority;
 
-use sml_macros::gen_token_type;
+use sml_macros::gen_token_kind;
 
-gen_token_type! {
+gen_token_kind! {
     BinaryOperator {
         Ampersand,
         Pipe,
@@ -37,7 +34,7 @@ gen_token_type! {
     }
 }
 
-gen_token_type! {
+gen_token_kind! {
     PreUnaryOperator {
         Bang,
         PlusPlus,
@@ -47,7 +44,7 @@ gen_token_type! {
     }
 }
 
-gen_token_type! {
+gen_token_kind! {
     PostUnaryOperator {
         PlusPlus,
         MinusMinus,

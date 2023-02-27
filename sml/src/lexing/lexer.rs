@@ -3,27 +3,23 @@ use std::{
     ops::Not,
 };
 
-use crate::diagnostics::{DiagnosticList, LexerDiagnosticKind};
+use crate::diagnostics::{DiagnosticsList, LexerDiagnostic};
 
 use super::{Cursor, Token, TokenSpan};
 
-pub struct Lexer<'a> {
+pub struct Lexer<'a, 'b> {
     source: &'a str,
     cursor: Cursor<'a>,
-    diagnostics: DiagnosticList<LexerDiagnosticKind>,
+    diagnostics: &'b DiagnosticsList<'a>,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl<'a: 'b, 'b> Lexer<'a, 'b> {
+    pub fn new(source: &'a str, diagnostics: &'b DiagnosticsList<'a>) -> Self {
         Self {
             source,
             cursor: Cursor::new(source),
-            diagnostics: DiagnosticList::new(),
+            diagnostics,
         }
-    }
-
-    pub fn diagnostics(&self) -> &DiagnosticList<LexerDiagnosticKind> {
-        &self.diagnostics
     }
 
     pub fn lex(&mut self) -> Token<'a> {
@@ -42,7 +38,7 @@ impl<'a> Lexer<'a> {
         } {}
 
         let Some(c) = self.cursor.peek() else {
-            return Token::eof();
+            return Token::eof(self.cursor.location().into());
         };
 
         if let Some(tok) = self.try_lex_identifier_or_keyword() {
@@ -142,14 +138,14 @@ impl<'a> Lexer<'a> {
             _ => {
                 let span = TokenSpan::new(start_location, self.cursor.location());
                 self.diagnostics
-                    .push_kind(LexerDiagnosticKind::IllegalCharacter(c), span);
+                    .push((LexerDiagnostic::IllegalCharacter(c), span).into());
                 return self.lex();
             }
         };
 
         let span = TokenSpan::new(start_location, self.cursor.location());
 
-        kind(span).into()
+        kind(span)
     }
 
     pub fn lex_all(&mut self) -> Vec<Token> {
@@ -279,11 +275,11 @@ impl<'a> Lexer<'a> {
 
                         if let Err(ref err) = res {
                             let IntErrorKind::PosOverflow = err.kind() else {
-                        panic!("Integer parsing failed for an unhandled reason: {:?}", err);
-                    };
+                                panic!("Integer parsing failed for an unhandled reason: {:?}", err);
+                            };
 
                             self.diagnostics
-                                .push_kind(LexerDiagnosticKind::InvalidIntegerTooLarge, span);
+                                .push((LexerDiagnostic::InvalidIntegerTooLarge, span).into());
                         }
 
                         res.ok()
@@ -298,9 +294,9 @@ impl<'a> Lexer<'a> {
                     .then(|| {
                         let res = text.parse();
 
-                        if let Err(_) = res {
+                        if res.is_err() {
                             self.diagnostics
-                                .push_kind(LexerDiagnosticKind::InvalidFloat, span);
+                                .push((LexerDiagnostic::InvalidFloat, span).into());
                         }
 
                         res.ok()
@@ -352,9 +348,12 @@ impl<'a> Lexer<'a> {
                         }
                     }
                     None => {
-                        self.diagnostics.push_kind(
-                            LexerDiagnosticKind::UnclosedString,
-                            TokenSpan::new(start_location, self.cursor.location()),
+                        self.diagnostics.push(
+                            (
+                                LexerDiagnostic::UnclosedString,
+                                TokenSpan::new(start_location, self.cursor.location()),
+                            )
+                                .into(),
                         );
 
                         string = None;
@@ -430,7 +429,7 @@ impl<'a> Lexer<'a> {
                 let location = self.cursor.location();
                 let span = TokenSpan::new(location, location + 1);
                 self.diagnostics
-                    .push_kind(LexerDiagnosticKind::InvalidEscapeCharacter(c), span);
+                    .push((LexerDiagnostic::InvalidEscapeCharacter(c), span).into());
                 return None;
             }
         })
@@ -447,17 +446,23 @@ impl<'a> Lexer<'a> {
 
         let first = match first.to_digit(16) {
             None => {
-                self.diagnostics.push_kind(
-                    LexerDiagnosticKind::ExpectAsciiCharacterFirst(first),
-                    TokenSpan::new(first_location, second_location),
+                self.diagnostics.push(
+                    (
+                        LexerDiagnostic::ExpectAsciiCharacterFirst(first),
+                        TokenSpan::new(first_location, second_location),
+                    )
+                        .into(),
                 );
                 return None;
             }
             // an ascii character is 7 bits long in UTF-8, so the first byte must not exceed a value of 0x7.
             Some(n) if n > 0x7 => {
-                self.diagnostics.push_kind(
-                    LexerDiagnosticKind::InvalidAsciiCharacterCode(first, second),
-                    TokenSpan::new(first_location, last_location),
+                self.diagnostics.push(
+                    (
+                        LexerDiagnostic::InvalidAsciiCharacterCode(first, second),
+                        TokenSpan::new(first_location, last_location),
+                    )
+                        .into(),
                 );
                 return None;
             }
@@ -466,9 +471,12 @@ impl<'a> Lexer<'a> {
 
         let second = match second.to_digit(16) {
             None => {
-                self.diagnostics.push_kind(
-                    LexerDiagnosticKind::ExpectAsciiCharacterSecond(second),
-                    TokenSpan::new(second_location, last_location),
+                self.diagnostics.push(
+                    (
+                        LexerDiagnostic::ExpectAsciiCharacterSecond(second),
+                        TokenSpan::new(second_location, last_location),
+                    )
+                        .into(),
                 );
                 return None;
             }
@@ -485,9 +493,12 @@ impl<'a> Lexer<'a> {
         let code_index = self.cursor.location();
 
         if brace != '{' {
-            self.diagnostics.push_kind(
-                LexerDiagnosticKind::InvalidUnicodeSequenceMissingLeftBrace,
-                TokenSpan::new(start_index, code_index),
+            self.diagnostics.push(
+                (
+                    LexerDiagnostic::InvalidUnicodeSequenceMissingLeftBrace,
+                    TokenSpan::new(start_index, code_index),
+                )
+                    .into(),
             );
             return None;
         }
@@ -503,16 +514,19 @@ impl<'a> Lexer<'a> {
                     None => {
                         let span = TokenSpan::new(code_index, self.cursor.location() - 1);
                         self.diagnostics
-                            .push_kind(LexerDiagnosticKind::InvalidUnicodeCharacterCode, span);
+                            .push((LexerDiagnostic::InvalidUnicodeCharacterCode, span).into());
                         return None;
                     }
                 };
             }
 
             if i > 5 {
-                self.diagnostics.push_kind(
-                    LexerDiagnosticKind::InvalidUnicodeTooLong,
-                    TokenSpan::new(code_index, self.cursor.location()),
+                self.diagnostics.push(
+                    (
+                        LexerDiagnostic::InvalidUnicodeTooLong,
+                        TokenSpan::new(code_index, self.cursor.location()),
+                    )
+                        .into(),
                 );
                 return None;
             }
@@ -521,7 +535,7 @@ impl<'a> Lexer<'a> {
                 None => {
                     let span = TokenSpan::new(self.cursor.location() - 1, self.cursor.location());
                     self.diagnostics
-                        .push_kind(LexerDiagnosticKind::InvalidUnicodeDigit(next_char), span);
+                        .push((LexerDiagnostic::InvalidUnicodeDigit(next_char), span).into());
                     return None;
                 }
                 Some(n) => n,
@@ -571,9 +585,12 @@ impl<'a> Lexer<'a> {
                     }
                 }
 
-                self.diagnostics.push_kind(
-                    LexerDiagnosticKind::UnclosedBlockComment,
-                    TokenSpan::new(start_location, self.cursor.location()),
+                self.diagnostics.push(
+                    (
+                        LexerDiagnostic::UnclosedBlockComment,
+                        TokenSpan::new(start_location, self.cursor.location()),
+                    )
+                        .into(),
                 );
 
                 true
@@ -609,7 +626,8 @@ mod tests {
                     #[allow(unused_imports)]
                     use crate::lexing::{Lexer, TokenSpan, Location, Token, TokenDiscr, token};
 
-                    let mut lexer = Lexer::new(join!(" "; $($raw)*));
+                    let diagnostics = Vec::new();
+                    let mut lexer = Lexer::new(join!(" "; $($raw)*), &mut diagnostics);
 
                     let mut pos = 0;
 

@@ -30,3 +30,9 @@ impl TokenSpan {
         &source[self.start.byte()..self.end.byte()]
     }
 }
+
+impl From<Location> for TokenSpan {
+    fn from(value: Location) -> Self {
+        Self::empty(value)
+    }
+}
