@@ -621,51 +621,50 @@ mod tests {
             }
         )*) => {
             $(
+                #[allow(unused, non_snake_case)]
                 #[test]
                 fn $name() {
                     #[allow(unused_imports)]
-                    use crate::lexing::{Lexer, TokenSpan, Location, Token, TokenDiscr, token};
+                    use crate::{lexing::{Lexer, TokenSpan, Location, Token, TokenDiscr, token}, diagnostics::DiagnosticsList};
 
-                    let diagnostics = Vec::new();
-                    let mut lexer = Lexer::new(join!(" "; $($raw)*), &mut diagnostics);
+                    let diagnostics = DiagnosticsList::new();
+                    let mut lexer = Lexer::new(join!(" "; $($raw)*), &diagnostics);
 
                     let mut pos = 0;
 
                     $(
-                        let expecteds: &[&dyn Fn(crate::lexing::TokenSpan) -> Token<'static>] = &[$(&|span| Token::$token_discr(token::$token_discr {
-                            $($($arg_name: $arg_val,)*)?
-                            span
-                        })),*];
+                        let expected_n = 0 $(
+                            + {
+                                let $token_discr = ();
+                                1
+                            }
+                        )*;
 
                         let raw = $raw;
 
-                        if expecteds.len() == 1 {
-                            let start = pos;
-                            let end = start + raw.len();
-
+                        $(
                             let token = lexer.lex();
 
-                            let expected = &expecteds[0];
+                            let Token::$token_discr(token) = token else {
+                                panic!("The token kind of the parsed token does not match: {:?} != {}", token, stringify!($token_discr));
+                            };
+                            $($(
+                                assert_eq!($arg_val, *token.$arg_name());
+                            )*)?
+                        )*
+                        $(
+                            let $token_discr = ();
 
-                            assert_eq!(expected(
-                                TokenSpan::new(
-                                    // we don't care about the line and the column because they are not checked in the `PartialEq` implementation of `Location`
+                            if expected_n == 1 {
+                                let start = pos;
+                                let end = start + raw.len();
+
+                                assert_eq!(TokenSpan::new(
                                     Location::new(start, 0, 0),
                                     Location::new(end, 0, 0),
-                                ),
-                            ), token);
-                        } else {
-                            $(
-                                let token = lexer.lex();
-
-                                let Token::$token_discr(token) = token else {
-                                    panic!("The token kind of the parsed token does not match: {:?} != {}", token, stringify!($token_discr));
-                                };
-                                $($(
-                                    assert_eq!($arg_val, *token.$arg_name());
-                                )*)?
-                            )*
-                        }
+                                ), *token.span());
+                            }
+                        )?
 
                         pos += raw.len() + 1;
                     )*
