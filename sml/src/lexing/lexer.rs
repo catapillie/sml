@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     num::{IntErrorKind, ParseIntError},
     ops::Not,
 };
@@ -385,7 +386,19 @@ impl<'a: 'b, 'b> Lexer<'a, 'b> {
 
         let span = TokenSpan::new(start_location, self.cursor.location());
 
-        Some(Token::string(string.map(Into::into), span))
+        Some(Token::string(
+            string.map(|string| {
+                if string.is_empty() {
+                    Cow::Borrowed(
+                        TokenSpan::new(start_location + 1, self.cursor.location() - 1)
+                            .slice(self.source),
+                    )
+                } else {
+                    Cow::Owned(string)
+                }
+            }),
+            span,
+        ))
     }
 
     fn try_lex_character(&mut self) -> Option<Token<'a>> {
